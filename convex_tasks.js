@@ -1288,23 +1288,6 @@ export const adminRedeemHistory = query({
    Mật khẩu vẫn 100% do Firebase giữ -> đúng mật khẩu lúc đăng ký.
    Không đụng schema.ts, không cần auth.config.js, không đổi key admin.
    ================================================================ */
-/* BẢN 22 · Kiểm tra Tên đăng nhập / Biệt danh đã có người dùng chưa.
-   So sánh lowercase, bỏ khoảng trắng -> "Quan12" và " quan12 " vẫn trùng.
-   Bảng td_users schemaless nên không cần sửa schema.ts. */
-export const checkName = query({
-  args: A,
-  handler: async (ctx, args) => {
-    const u = String(args.p_search || "").trim().toLowerCase();
-    const n = String(args.p_nick || "").trim().toLowerCase();
-    const all = await rowsOf(ctx, T_USERS, null);
-    return {
-      ok: true,
-      usernameTaken: !!u && all.some((x) => String(x.username || "").toLowerCase() === u),
-      nicknameTaken: !!n && all.some((x) => String(x.nickname || "").trim().toLowerCase() === n),
-    };
-  },
-});
-
 export const resolveLogin = query({
   args: A,
   handler: async (ctx, args) => {
@@ -1362,11 +1345,6 @@ export const registerProfile = mutation({
     const clashMail = all.find((x) =>
       String(x.email || "").toLowerCase() === email && String(x.uid) !== uid);
     if (clashMail) return { ok: false, msg: "Gmail này đã thuộc tài khoản khác" };
-    /* BẢN 22 · Biệt danh cũng phải duy nhất (chặn cả phía server, chống F12) */
-    const clashNick = nick ? all.find((x) =>
-      String(x.nickname || "").trim().toLowerCase() === nick.toLowerCase() &&
-      String(x.uid) !== uid) : null;
-    if (clashNick) return { ok: false, msg: "Biệt danh đã được sử dụng rồi" };
 
     const u = await ensureUser(ctx, uid, "");
     if (!u) return { ok: false, msg: "Không tạo được hồ sơ" };

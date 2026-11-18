@@ -1416,10 +1416,10 @@ export const registerProfile = mutation({
    Mỗi lần "Gửi mã" sinh mã mới và XOÁ mã cũ của email đó (chống dùng lại).
    Hết hạn 5 phút · tối đa 5 lần đoán · verify đúng thì đánh dấu verified.
 
-   BẢN 27 · ĐÃ XOÁ CHẾ ĐỘ TEST: Convex KHÔNG sinh mã, KHÔNG trả mã test.
-   Mã do otp-server trên Render sinh + gửi qua Brevo HTTPS API (cổng 443).
-   requestOtp trả ok:false để bản web cũ (còn cache) không lộ mã nữa.
-   verifyOtp giữ nguyên để tương thích, bảng td_otp luôn rỗng.
+   ⚠️ CHẾ ĐỘ TEST: Convex mutation KHÔNG gửi email, nên trả kèm devCode
+   để hiện ngay trên form. Khi có nhiều user: điền link Render (server.cjs
+   + Gmail SMTP) vào TD_OTP_DEFAULT của otp-config.js -> web tự ưu tiên
+   gửi mail thật, 2 hàm này vẫn làm dự phòng. Đúng cam kết "mốt đổi sau".
    ================================================================ */
 const T_OTP = "td_otp";
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -1439,13 +1439,20 @@ export const requestOtp = mutation({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, msg: 'Email không hợp lệ' };
     }
-    /* Dọn sạch mã cũ sót lại từ bản test -> không ai dùng lại được. */
+    const now = Date.now();
+    /* Gửi lại = mã mới, mã cũ vô hiệu ngay */
     const olds = await otpRows(ctx, email);
     for (const r of olds) { try { await ctx.db.delete(r._id); } catch (e) {} }
+    const code = String(100000 + Math.floor(Math.random() * 900000));
+    await ctx.db.insert(T_OTP, {
+      email, code, createdAt: now, expiresAt: now + OTP_TTL_MS,
+      tries: 0, verified: false,
+    });
     return {
-      ok: false,
-      mailSent: false,
-      msg: 'Server gửi mail (Render + Brevo) phụ trách OTP. Bấm Gửi mã lại nhé.',
+      ok: true,
+      mailSent: false,          // true khi sau này bật Render/Resend
+      devCode: code,            // chế độ test: hiện ngay trên form
+      msg: 'Đã tạo mã OTP 6 số (hiệu lực 5 phút)',
     };
   },
 });
