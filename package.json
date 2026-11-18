@@ -1,14 +1,12 @@
 {
-  "name": "tuidiemonline-backend",
+  "name": "tuidiemonline",
   "version": "1.0.0",
-  "type": "commonjs",
+  "private": true,
+  "description": "Tui Diem Online · GitHub Pages + Convex + OTP Brevo/Render",
   "scripts": {
-    "start": "node server.cjs",
     "convex:deploy": "convex deploy"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "nodemailer": "^6.9.13",
     "convex": "^1.0.0"
   }
 }

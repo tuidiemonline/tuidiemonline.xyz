@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: otp-server
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SENDER_EMAIL
+        value: support.tuidiemonline@gmail.com
+      - key: SENDER_NAME
+        value: Tui Diem Online

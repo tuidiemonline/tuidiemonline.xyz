@@ -1,5 +1,14 @@
+/* ==================================================================
+convex_tasks.js · BẢN 27  (TỔNG HỢP Bản 11 + Bản 25 bạn gửi)
+------------------------------------------------------------------
+Bản 11 bạn gửi thiếu p_otp / 2 hàm OTP; Bản 25 có nhưng còn devCode.
+Mình gộp lại = đúng nội dung tasks.js BẢN 27 ở cùng thư mục.
+⚠️ ĐÂY CHỈ LÀ FILE THAM CHIẾU. File thật để deploy là convex/tasks.js.
+   Đừng copy file này đè lên convex/tasks.js (nội dung đã giống nhau,
+   nhưng copy nhầm tên dễ gây rối).
+================================================================== */
 /* ================================================================
-TÚI ĐIỂM ONLINE · SERVER  (BẢN 11 · ADMIN TỔNG (server giữ nguyên logic Bản 10): ONLINE / BIỆT DANH / LỊCH SỬ 2 NGÀY / CỘNG-TRỪ COIN / KHOÁ ACC / THÔNG BÁO CHUNG)
+TÚI ĐIỂM ONLINE · SERVER  (BẢN 25 · ADMIN TỔNG (server giữ nguyên logic Bản 10): ONLINE / BIỆT DANH / LỊCH SỬ 2 NGÀY / CỘNG-TRỪ COIN / KHOÁ ACC / THÔNG BÁO CHUNG)
 File này copy thành: convex/tasks.js  ->  npx convex deploy
 
 LỖI THẬT (log 00:44): "Failed to insert or update a document in table
@@ -100,38 +109,34 @@ async function uidOf(ctx, args) {
   const id = await ctx.auth.getUserIdentity();
   if (id && id.subject) return id.subject;
   if (process.env.STRICT_AUTH === "1") throw new Error("Chưa xác thực Firebase");
-  return String(args.p_uid || "");
+  return String(args.p_uid || "").trim();
 }
-/* ---- SỐ DƯ: MỘT NGUỒN DUY NHẤT · KHÔNG BAO GIỜ NHÁY ----------------
-   coinsOf(w) KHÔNG đụng DB, KHÔNG quét bảng khác, KHÔNG phụ thuộc thời
-   điểm chạy. Query và Mutation cùng gọi -> cùng 1 kết quả.            */
-const LEGACY_TOTAL = 4774;   // TỔNG coin cũ ("Thu nhập của tôi")
-const LEGACY_TODAY = 260;    // coin kiếm hôm nay ("Coin hôm nay")
+/* ---- SỐ DƯ: MỘT TÀI KHOẢN = MỘT VÍ  ·  BẢN 29 --------------------
+   Acc mới (chưa có document td_wallet) LUÔN = 0 coin / 0 coin hôm nay.
+   Acc đã có ví (vd. shinotoh 4.774 / 260) GIỮ NGUYÊN, không patch, không
+   seed lại -> cày 3.000 hay 5.000 của acc nào chỉ nằm ở acc đó.
+   coinsOf(w) là hàm THUẦN: không đụng DB, query & mutation cùng kết quả.
 
-/* 5 bảng MỚI · không nằm trong schema.ts -> schemaless -> ZERO validate */
-const WALLET       = "td_wallet";
-const T_TASK       = "td_task_state";
-const T_CLAIMS     = "td_claims";
-const T_TICKETS    = "td_ticket_claims";
-const T_DIA        = "td_diamond_logs";
-/* BẢN 8 · 3 bảng MỚI, đều schemaless -> KHÔNG sửa schema.ts, KHÔNG validate field */
-const T_USERS      = "td_users";          // hồ sơ + nhịp tim + cờ khoá acc
-const T_HISTORY    = "td_coin_history";   // lịch sử kiếm coin RIÊNG cho Admin (2 ngày)
-const T_NOTICES    = "td_notices";        // thông báo quan trọng gửi cho TẤT CẢ user
+   Nếu sau này reset DB và muốn khôi phục RIÊNG 1 acc demo, điền UID
+   Firebase của acc đó vào DEMO_WALLETS (lấy ở Cài đặt → ID tài khoản).
+   Để trống = mọi tài khoản mới bắt đầu từ 0.                       */
+const DEMO_WALLETS = {
+  // "uid_firebase_cua_shinotoh": { coins: 4774, today: 260 },
+};
+function demoOf(uid) { return DEMO_WALLETS[String(uid || "")] || null; }
 
-/* BẢN 6: HÀM THUẦN. Không quét bảng, không seed ảo, không phụ thuộc
-   streamBy / legacySeeded / tdFixV4. Ví chưa tồn tại vẫn trả 4.774 để
-   query chạy trước mutation KHÔNG làm ô số tụt về 0. */
 function coinsOf(w) {
-  if (!w) return LEGACY_TOTAL;
+  if (!w) return 0;
   const c = Number(w.coins);
-  return Number.isFinite(c) ? c : LEGACY_TOTAL;
+  return Number.isFinite(c) ? c : 0;
 }
-/* BẢN 8: TỔNG coin user ĐÃ KIẾM (chỉ tăng, không giảm khi tiêu/đổi thẻ).
-   Ví cũ bản 6 chưa có field này -> fallback đúng 4.774, KHÔNG patch ví cũ. */
+/* TỔNG coin ĐÃ KIẾM (chỉ tăng). Ví cũ chưa có field -> lấy coins hiện có. */
 function earnedOf(w) {
-  const n = Number(w && w.earnedTotal);
-  return Number.isFinite(n) ? n : LEGACY_TOTAL;
+  if (!w) return 0;
+  const n = Number(w.earnedTotal);
+  if (Number.isFinite(n)) return n;
+  const c = Number(w.coins);
+  return Number.isFinite(c) ? c : 0;
 }
 /* BẢN 8: đọc cờ khoá acc. Bảng chưa tồn tại -> false, không văng lỗi.
    BẢN 9: quá ngày mở khoá thì tự coi như ĐÃ MỞ (không cần admin bấm). */
@@ -172,15 +177,16 @@ async function getWallet(ctx, uid) {
   return rows[0];   /* luôn chọn CÙNG 1 ví dù lỡ có document trùng uid */
 }
 async function ensureWallet(ctx, uid) {
+  if (!uid) return null;   /* BẢN 29: không tạo ví chung cho uid rỗng */
   let w = await getWallet(ctx, uid);
   if (!w) {
     /* SEED 1 LẦN DUY NHẤT, ngay trong document ví. Không field lạ,
        không patch dọn dẹp, không cờ chốt -> không còn CONVEX_ERROR. */
     const doc = {
       uid,
-      coins: LEGACY_TOTAL,      // 4.774 (đã gồm 260 hôm nay)
-      earnedTotal: LEGACY_TOTAL,// BẢN 8: tổng coin ĐÃ KIẾM (chỉ tăng)
-      today: LEGACY_TODAY,      // 260
+      coins: demoOf(uid) ? demoOf(uid).coins : 0,          // BẢN 29: acc mới = 0
+      earnedTotal: demoOf(uid) ? demoOf(uid).coins : 0,
+      today: demoOf(uid) ? demoOf(uid).today : 0,          // coin hôm nay = 0
       todayDate: dayVN(),
       /* VÉ / KIM CƯƠNG / CHUỖI là tài sản: không reset lúc 00:00 */
       tickets: 0, diamonds: 0,
@@ -293,6 +299,8 @@ const A = {
   /* BẢN 12 · đăng ký tay: lưu username -> Gmail + seed ví 0 coin */
   p_email: v.optional(v.string()),
   p_phone: v.optional(v.string()),
+  /* BAN 24 · OTP 6 so */
+  p_otp: v.optional(v.string()),
 };
 
 /* ============ 1. ĐĂNG NHẬP (chuỗi đăng nhập, KHÔNG phải chuỗi vé) ==== */
@@ -321,7 +329,7 @@ export const coinState = query({
     const w = await getWallet(ctx, uid);
     const coins = await displayCoins(ctx, uid, w);   // TỔNG (đã gộp 4.774 cũ)
     /* Chưa kịp tạo ví: vẫn trả 4.774 / 260 -> không nháy về 0 ... */
-    if (!w) return { ok: true, coins, today: LEGACY_TODAY, diamonds: 0, tickets: 0 };
+    if (!w) return { ok: true, coins, today: 0, diamonds: 0, tickets: 0 };
     return {
       ok: true,
       coins,                                           // Thu nhập của tôi (giữ mãi)
@@ -366,7 +374,7 @@ export const todayStats = query({
     const coins = await displayCoins(ctx, uid, w);
     return {
       ok: true,
-      today: w && w.todayDate === d ? w.today : (w ? 0 : LEGACY_TODAY),  // CHỈ coin kiếm hôm nay
+      today: w && w.todayDate === d ? w.today : 0,  // BẢN 29: ví chưa có = 0
       coins,                                          // TỔNG thu nhập (giữ mãi)
       diamonds: w ? (w.diamonds || 0) : 0,
       history,
@@ -1288,6 +1296,23 @@ export const adminRedeemHistory = query({
    Mật khẩu vẫn 100% do Firebase giữ -> đúng mật khẩu lúc đăng ký.
    Không đụng schema.ts, không cần auth.config.js, không đổi key admin.
    ================================================================ */
+/* BẢN 23 · Kiểm tra Tên đăng nhập / Biệt danh đã có người dùng chưa.
+   So sánh lowercase, bỏ khoảng trắng -> "Quan12" và " quan12 " vẫn trùng.
+   Bảng td_users schemaless nên không cần sửa schema.ts. */
+export const checkName = query({
+  args: A,
+  handler: async (ctx, args) => {
+    const u = String(args.p_search || "").trim().toLowerCase();
+    const n = String(args.p_nick || "").trim().toLowerCase();
+    const all = await rowsOf(ctx, T_USERS, null);
+    return {
+      ok: true,
+      usernameTaken: !!u && all.some((x) => String(x.username || "").trim().toLowerCase() === u),
+      nicknameTaken: !!n && all.some((x) => String(x.nickname || "").trim().toLowerCase() === n),
+    };
+  },
+});
+
 export const resolveLogin = query({
   args: A,
   handler: async (ctx, args) => {
@@ -1345,6 +1370,11 @@ export const registerProfile = mutation({
     const clashMail = all.find((x) =>
       String(x.email || "").toLowerCase() === email && String(x.uid) !== uid);
     if (clashMail) return { ok: false, msg: "Gmail này đã thuộc tài khoản khác" };
+    /* BẢN 23 · Biệt danh cũng phải duy nhất (chặn cả phía server, chống F12) */
+    const clashNick = nick ? all.find((x) =>
+      String(x.nickname || "").trim().toLowerCase() === nick.toLowerCase() &&
+      String(x.uid) !== uid) : null;
+    if (clashNick) return { ok: false, msg: "Biệt danh đã được sử dụng rồi" };
 
     const u = await ensureUser(ctx, uid, "");
     if (!u) return { ok: false, msg: "Không tạo được hồ sơ" };
@@ -1359,7 +1389,7 @@ export const registerProfile = mutation({
     await ctx.db.patch(u._id, patch);
 
     /* ACC MỚI = 0 COIN. Tạo ví ngay tại đây -> ensureWallet() thấy ví đã có
-       và KHÔNG seed LEGACY_TOTAL (4.774) nữa. Acc cũ có ví rồi -> giữ nguyên. */
+       và KHÔNG seed 4.774 nữa (BẢN 29). Acc cũ có ví rồi -> giữ nguyên. */
     const w = await getWallet(ctx, uid);
     if (!w) {
       try {
@@ -1378,5 +1408,79 @@ export const registerProfile = mutation({
       nickname: nick || String(u.nickname || ""),
       coins: w ? coinsOf(w) : 0,
     };
+  },
+});
+
+/* ================================================================
+   BẢN 24 · OTP 6 SỐ CHẠY TRÊN CHÍNH DEPLOYMENT NÀY
+   ----------------------------------------------------------------
+   Web chỉ cần 1 link: https://tough-canary-511.convex.cloud
+   Frontend gọi POST /api/mutation { path: 'tasks:requestOtp' }
+   và { path: 'tasks:verifyOtp' } (xem TD_RPC_MAP trong index.html).
+
+   Bảng td_otp là schemaless -> KHÔNG sửa schema.ts, KHÔNG lỗi validator.
+   Mỗi lần "Gửi mã" sinh mã mới và XOÁ mã cũ của email đó (chống dùng lại).
+   Hết hạn 5 phút · tối đa 5 lần đoán · verify đúng thì đánh dấu verified.
+
+   BẢN 27 · ĐÃ XOÁ CHẾ ĐỘ TEST: Convex KHÔNG sinh mã, KHÔNG trả mã test.
+   Mã do otp-server trên Render sinh + gửi qua Brevo HTTPS API (cổng 443).
+   requestOtp trả ok:false để bản web cũ (còn cache) không lộ mã nữa.
+   verifyOtp giữ nguyên để tương thích, bảng td_otp luôn rỗng.
+   ================================================================ */
+const T_OTP = "td_otp";
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_MAX_TRIES = 5;
+
+function otpEmail(args) {
+  return String((args && args.p_email) || '').trim().toLowerCase();
+}
+async function otpRows(ctx, email) {
+  return await rowsOf(ctx, T_OTP, (q) => q.eq(q.field("email"), email));
+}
+
+export const requestOtp = mutation({
+  args: A,
+  handler: async (ctx, args) => {
+    const email = otpEmail(args);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, msg: 'Email không hợp lệ' };
+    }
+    /* Dọn sạch mã cũ sót lại từ bản test -> không ai dùng lại được. */
+    const olds = await otpRows(ctx, email);
+    for (const r of olds) { try { await ctx.db.delete(r._id); } catch (e) {} }
+    return {
+      ok: false,
+      mailSent: false,
+      msg: 'Server gửi mail (Render + Brevo) phụ trách OTP. Bấm Gửi mã lại nhé.',
+    };
+  },
+});
+
+export const verifyOtp = mutation({
+  args: A,
+  handler: async (ctx, args) => {
+    const email = otpEmail(args);
+    const code = String((args && args.p_otp) || '').trim();
+    if (!/^\d{6}$/.test(code)) return { ok: false, msg: 'Mã phải đúng 6 chữ số' };
+    const rows = await otpRows(ctx, email);
+    if (!rows.length) return { ok: false, msg: 'Chưa có mã, bấm "Gửi mã OTP" trước nhé' };
+    rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const r = rows[0];
+    const now = Date.now();
+    if (r.verified) return { ok: true, msg: 'Đã xác thực' };
+    if (now > Number(r.expiresAt || 0)) {
+      try { await ctx.db.delete(r._id); } catch (e) {}
+      return { ok: false, msg: 'Mã đã hết hạn (5 phút), bấm Gửi mã lại nhé' };
+    }
+    if (Number(r.tries || 0) >= OTP_MAX_TRIES) {
+      try { await ctx.db.delete(r._id); } catch (e) {}
+      return { ok: false, msg: 'Nhập sai quá 5 lần, bấm Gửi mã lại nhé' };
+    }
+    if (String(r.code) !== code) {
+      await ctx.db.patch(r._id, { tries: Number(r.tries || 0) + 1 });
+      return { ok: false, msg: 'Mã OTP không đúng' };
+    }
+    await ctx.db.patch(r._id, { verified: true, verifiedAt: now });
+    return { ok: true, msg: 'Xác thực thành công' };
   },
 });
