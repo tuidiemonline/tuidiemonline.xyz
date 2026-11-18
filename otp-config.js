@@ -24,4 +24,4 @@ nằm trong convex/tasks.js). index.html đọc TD_CONVEX_URL ở dòng dưới
   git add . && git commit -m "doi link convex" && git push origin main
 ================================================================== */
 window.TD_CONVEX_URL = 'https://tough-canary-511.convex.cloud';
-window.TD_OTP_DEFAULT = '';   // (tuỳ chọn) link Render gửi mail thật; để trống = dùng Convex
+window.TD_OTP_DEFAULT = 'https://otp-server-xvsk.onrender.com';   // (tuỳ chọn) link Render gửi mail thật; để trống = dùng Convex
