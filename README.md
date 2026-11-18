@@ -1,101 +1,103 @@
-# Túi Điểm Online — bộ file hoàn chỉnh (BẢN 13 · đã bỏ khung xác thực Gmail)
+# TÚI ĐIỂM ONLINE · BẢN 22 (TỔNG HỢP)
 
-## Trả lời câu hỏi: "khi nào đưa vào tuidiemonline hoạt động được?"
-**Ngay bây giờ.** Không cần chờ thêm bước nào:
+Gói này gom **toàn bộ** yêu cầu từ Bản 13 → 21 vào 1 lần sửa. Tên file zip đúng:
+`tuidiemonline-final.zip` (bên trong là thư mục `tuidiemonline-final/`).
 
-| Thành phần | Trạng thái | Link |
-|---|---|---|
-| Web (GitHub Pages) | ✅ đang chạy | https://tuidiemonline.xyz |
-| Backend Convex | ✅ chạy 24/7 trên cloud | https://fabulous-capybara-90.convex.cloud |
+---
 
-`index.html` dòng 1738 đã trỏ đúng URL Convex, bảng RPC map `tasks:*` khớp toàn bộ 34 hàm trong `convex/tasks.js` (coin, nhiệm vụ, vòng quay, đổi thẻ, admin, khoá acc...).
-=> **Chỉ cần upload bản `index.html` này lên repo `tuidiemonline.xyz` là web đầy đủ chức năng**, không cần Vercel, không cần giữ Termux mở.
+## 1. CÓ GÌ TRONG GÓI
 
-## File nào đẩy lên repo nào
+| File | Việc cần làm |
+|---|---|
+| `index.html` | Upload lên repo `tuidiemonline.xyz` (GitHub Pages) |
+| `convex/tasks.js` | Copy thành `convex/tasks.js` rồi `npx convex deploy` **1 lần** |
+| `server.cjs` | Chỉ deploy lên Render, **KHÔNG đẩy lên GitHub Pages** |
+| `otp-config.js` | **MỚI** · điền 1 dòng link Render rồi push cùng `index.html` |
+| `CNAME`, `package.json`, `.gitignore`, `convex/auth.config.js.example` | Giữ nguyên |
 
-**Repo `tuidiemonline.xyz` (GitHub Pages — web tĩnh)**
-- `index.html`  ← file chính, bản này
-- `CNAME`       ← `tuidiemonline.xyz`
-- `ads.txt`     ← GIỮ NGUYÊN file đang có trên repo (không ghi đè, chứa mã pub AdSense của bạn)
-- `README.md`
+> `server.cjs` đã gửi mã OTP thật bằng Gmail SMTP (Nodemailer) từ trước, bản này **giữ nguyên**, chỉ cần cấp đúng `GMAIL_USER` + `GMAIL_PASS` (App Password 16 ký tự) trên Render.
 
-**Repo `otp-server` (backend)**
-- `convex/tasks.js`              ← server Convex, giữ nguyên logic Bản 11/12
-- `convex/auth.config.js.example`← mẫu, chưa cần kích hoạt
-- `package.json`
-- `server.cjs`                  ← OTP server (tùy chọn)
-- `.gitignore`
+---
 
-⚠️ Đừng đẩy `server.cjs` lên GitHub Pages (Pages không chạy Node.js). Đẩy `index.html` vào repo backend cũng không sao nhưng thừa.
+## 2. NHỮNG GÌ ĐÃ SỬA
 
-## Lệnh chạy
+1. **Xoá hẳn khung "Xác thực Gmail" của Firebase** (overlay, CSS, 3 nút, `sendEmailVerification` / `emailVerified`). Đăng ký xong không còn bắt mở Gmail bấm link.
+2. **Form đăng ký**: xoá chữ `(bắt buộc)` ở 5 ô, chỉ giữ `Điện thoại (không bắt buộc)`.
+3. **OTP ngay dưới ô Gmail** (đăng ký): nút `📧 Gửi mã OTP` → ô 6 số → nút `✅ Xác thực` → đúng mã thì **tự hiện tích xanh ✅**, đổi màu chữ, khoá ô, mới cho bấm `Tiếp tục`. Có đếm ngược 60s + `Gửi lại mã`.
+4. **Quên mật khẩu ngoài màn đăng nhập**: cùng luồng OTP đầy đủ trên 1 màn hình — nhập Gmail → Gửi mã → nhập 6 số → Xác thực → tích xanh ✅ → **tự nhảy** sang `Mật khẩu mới` + `Nhập lại mật khẩu mới` → `Đặt lại mật khẩu`.
+   - Sửa lỗi ô Gmail bị gộp thành `support...@...@gmail.com`: mỗi lần mở popup là xóa sạch ô.
+   - Sửa thông báo mơ hồ `Chưa gửi được OTP`: giờ hiện rõ lý do (chưa có link / sai App Password / Render đang ngủ / CORS).
+5. **Mật khẩu mạnh (bắt buộc)**: ≥ 8 ký tự, có **chữ HOA + chữ thường + số + ký tự đặc biệt**. Yếu là chặn ngay, không tạo tài khoản. Áp dụng cả lúc đặt lại mật khẩu.
+6. **Tên đăng nhập ≠ Biệt danh** (không cho trùng nhau trên cùng form).
+7. **Không ai trùng tên ai**: thêm query `checkName` trên Convex, so sánh không phân biệt hoa thường cho cả `username` lẫn `nickname`. User sau đặt `quan12` khi user trước đã có → hiện `Tên này đã được sử dụng rồi`. `registerProfile` cũng chặn lại phía server để F12 không lách được.
+8. **Chữ "Đổi mật khẩu" đổi sang TRẮNG** (cả mục Cài đặt và trang Thông tin cá nhân).
+9. **Gmail trong Cài đặt không còn bị cụt** (`support.tuidiemonl...`) → cho xuống dòng, hiện đủ địa chỉ.
+10. **Link OTP dùng chung cho mọi user**: thêm `otp-config.js`. Admin điền 1 dòng, push lên, toàn bộ user tự nhận — không cần `?otp=` trên từng điện thoại, không cần Console. Vẫn giữ `?otp=` / `tdOtpSet('...')` làm dự phòng.
 
-Giải nén rồi vào thư mục:
-```bash
-unzip tuidiemonline-final.zip -d tuidiemonline_termux
-cd tuidiemonline_termux/tuidiemonline-final
+---
+
+## 3. BẬT OTP THẬT (3 VIỆC, ~5 PHÚT)
+
+**Bước A — Render (đã có sẵn server.cjs)**
+- New Web Service → trỏ repo `otp-server`, Start Command: `npm start`
+- Environment:
+  - `GMAIL_USER` = Gmail gửi mã
+  - `GMAIL_PASS` = **App Password 16 ký tự** (không phải mật khẩu đăng nhập)
+- Deploy xong copy link dạng `https://xxx.onrender.com`
+
+**Bước B — 1 dòng cấu hình**
+Mở `otp-config.js`, sửa:
+```js
+window.TD_OTP_DEFAULT = 'https://xxx.onrender.com';
 ```
+(Không sửa `index.html`. Có thể thay bằng cách mở 1 lần `https://tuidiemonline.xyz/?otp=https://xxx.onrender.com` hoặc gõ Console `tdOtpSet('https://xxx.onrender.com')`.)
 
-**1. Cập nhật web (Pages tự build trong ~1 phút)**
+**Bước C — Đẩy code**
 ```bash
-git add index.html CNAME README.md
-git commit -m "dong bo ban hoan chinh"
+cd ~/tuidiemonline_termux
+cp /storage/emulated/0/Download/tuidiemonline-final.zip .
+unzip -o tuidiemonline-final.zip
+cp -r tuidiemonline-final/* .
+
+# Convex: deploy 1 lần vì có thêm hàm checkName
+npx convex deploy
+
+# GitHub Pages
+git add index.html otp-config.js README.md CNAME
+git commit -m "ban 22 - tong hop OTP, mat khau manh, ten duy nhat"
 git push origin main
 ```
-Vào repo → Settings → Pages → Custom domain gõ `tuidiemonline.xyz` → Save → bật **Enforce HTTPS**.
+Username: `tuidiemonline` · Password: **Token GitHub mới**.
 
-**2. Deploy lại Convex (chỉ khi sửa tasks.js)**
-```bash
-npm install
-npx convex deploy
-```
-Xong là tắt Termux thoải mái, Convex tự chạy.
+⚠️ **Không** `git add server.cjs` lên repo Pages. **Không** xoá `ads.txt`. **Không** bấm triển khai trong email Vercel (web đang chạy bằng GitHub Pages).
 
-**3. OTP server (KHÔNG bắt buộc cho web hiện tại)**
-Web chạy ngay dù chưa có OTP: đăng ký tay / Google vào thẳng, Quên mật khẩu bỏ qua bước mã (vẫn có link đặt lại của Firebase trong Gmail). Bật OTP thật khi có link Render, xem mục BẢN 14 bên dưới:
-```bash
-GMAIL_USER=... GMAIL_PASS=... npm start
-```
-- Render: Start Command `npm start`, thêm env `GMAIL_USER`, `GMAIL_PASS`; Render tự cấp `PORT`.
-- UptimeRobot ping `https://<link-render>/health` mỗi 5 phút để khỏi ngủ.
+---
 
-## BẢN 14 · Đã sửa gì (yêu cầu: "bạn sửa luôn đi rồi gửi lại file")
+## 4. KIỂM TRA SAU KHI PUSH
 
-**`index.html`**
-- **Không cần sửa file khi có link Render nữa.** `TD_OTP_URL` giờ tự nhận theo thứ tự:
-  1. Mở đúng 1 lần `https://tuidiemonline.xyz/?otp=https://xxx.onrender.com` → tự lưu vĩnh viễn vào máy.
-  2. `localStorage.td_otp_url` (hoặc gõ trong Console: `tdOtpSet('https://xxx.onrender.com')`).
-  3. Dòng `window.TD_OTP_DEFAULT = '';` cạnh `CONVEX_URL` nếu muốn gắn cố định.
-  Gõ `tdOtpSet('')` để tắt. Chỉ nhận `http/https`, giá trị lạ bị bỏ qua.
-- **Bỏ hẳn mã 6 số giả** (`Math.random()` hiện lên màn hình) — thứ gây hiểu nhầm "sai OTP / hiện xác thực". Chưa bật OTP thì Quên mật khẩu chuyển thẳng sang bước đặt mật khẩu mới, vẫn gửi link Firebase `sendPasswordResetEmail` để xác nhận quyền sở hữu Gmail.
-- Khi đã có URL: `tdOtpRequest()` → `/api/request-otp`, `tdOtpVerify()` → `/api/verify-otp`, mã 6 số thật trong Gmail, hết hạn 5 phút, màn hình hiện `•••••• (xem Gmail)` chứ không lộ mã.
-- Giữ nguyên BẢN 13: `TD_REQUIRE_VERIFY = false`, overlay "Xác thực Gmail" không bao giờ hiện; `TD_OTP_REQUIRED = false`.
+1. Vào **Actions** đợi tích xanh ✅ (~1 phút).
+2. Mở `https://tuidiemonline.xyz` bằng **cửa sổ ẩn danh** (tránh cache).
+3. Test đăng ký:
+   - Nhập `quan12` / Gmail / Biệt danh `quan12` → báo *không được giống nhau*.
+   - Đặt mật khẩu `123456` → báo *quá yếu*.
+   - Đặt `Quan@2026x` → bấm `Gửi mã OTP` → check Gmail (cả **Thư rác**) → nhập 6 số → `Xác thực` → tích xanh ✅ → `Tiếp tục`.
+   - Đăng ký lại đúng tên `quan12` bằng Gmail khác → báo *đã được sử dụng rồi*.
+4. Test `Quên mật khẩu?` ở màn đăng nhập: luồng OTP → tích xanh → 2 ô mật khẩu mới.
 
-**`server.cjs`**: giữ nguyên BẢN 13 (CORS + 2 API JSON + `/health` + `process.env`), không đổi.
+---
 
-**`convex/tasks.js`**: giữ nguyên 100%, không đụng logic coin/nhiệm vụ, **không cần `npx convex deploy` lại**.
+## 5. LƯU Ý KHI ĐÔNG USER
 
-### Bật OTP thật (2 bước, làm khi nào cũng được)
-1. Đẩy `server.cjs` + `package.json` lên Render → Web Service, Start `npm start`, thêm env `GMAIL_USER`, `GMAIL_PASS` (App Password **mới**). UptimeRobot ping `/health` mỗi 5 phút để Render không ngủ.
-2. Mở **đúng 1 lần**: `https://tuidiemonline.xyz/?otp=https://<ten-render>.onrender.com`
+- Gmail cá nhân gửi qua SMTP bị giới hạn ~**500 mail/ngày** và Google dễ chặn IP lạ. Mới bắt đầu thì chạy ổn (như bạn đã chốt). Khi đông, đổi sang **Resend / SendGrid**: chỉ sửa `transporter` trong `server.cjs`, `index.html` không đụng gì.
+- Render gói free hay "ngủ": cho UptimeRobot ping `https://xxx.onrender.com/health` mỗi 5 phút.
+- `otpStore` đang nằm trong RAM: Render restart sẽ mất mã đang chờ. User chỉ cần bấm `Gửi lại mã`.
+- Nên **thu hồi App Password Gmail cũ + revoke Token GitHub cũ** nếu từng lộ trong ảnh/chat.
 
-Xong — **không sửa `index.html`, không upload lại, không mở Termux**. Link được lưu trong máy; những lần sau vào web thường là OTP đã bật. Vào **Quên mật khẩu** → nhận mã 6 số trong Gmail → dán vào ô.
-*(Muốn gắn cố định cho mọi máy: dán link vào `TD_OTP_DEFAULT` rồi upload `index.html` 1 lần.)*
+---
 
-> ⚠️ Mình không thể tự điền link Render vì nó do Render cấp **sau khi bạn bấm Deploy** — không có sẵn để đoán. Mọi thứ còn lại đã sửa xong trong file này.
+## 6. KIỂM TRA KỸ THUẬT ĐÃ CHẠY
 
-## Đã sửa gì ở các bản trước
-- `server.cjs`: **bỏ hardcode** email/App Password, chuyển hết sang `process.env` → hết lỗi `Missing credentials for "PLAIN"` mà vẫn không lộ mật khẩu trong code.
-- Thêm `/health` để ping giữ service thức.
-- `package.json`: gộp đủ `express + nodemailer + convex`, thêm script `convex:deploy`.
-- `convex/tasks.js`: **giữ nguyên 100%** (đã đối soát khớp URL + tên hàm, không sửa logic của bạn).
-- Thêm `CNAME` và `auth.config.js.example` điền sẵn Firebase project `tui-diem-online-455e2`.
-
-## Bảo mật — làm ngay hôm nay
-1. App Password Gmail cũ đã lộ trong ảnh/chat → vào Google Account → **thu hồi**, tạo cái mới, cập nhật env `GMAIL_PASS` trên Render. (Không còn ghi mật khẩu trong README này nữa.)
-2. GitHub Token `ghp_...` đã gõ thẳng vào lệnh → Settings → Developer settings → **Revoke**, tạo token mới.
-3. Dọn lịch sử Termux: `rm -f ~/.bash_history && history -c`
-4. Firebase `apiKey` trong `index.html` là key public (bình thường), nhưng nên giới hạn domain trong Firebase Console.
-
-## Kiểm tra nhanh
-Mở `https://tuidiemonline.xyz` → đăng nhập Google → xem số coin 4.774 / 260 hôm nay có hiện đúng không. Nếu hiện đúng là Convex + Pages đã thông suốt.
+- Mọi khối `<script>` inline trong `index.html`: `node --check` sạch.
+- `convex/tasks.js`: parse ESM sạch.
+- `server.cjs`: `node --check` sạch.
+- `convex/tasks.js` giữ nguyên toàn bộ logic ví/coin/nhiệm vụ/admin; chỉ **thêm** `checkName` + 1 đoạn chặn trùng biệt danh trong `registerProfile`.
