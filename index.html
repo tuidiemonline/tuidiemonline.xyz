@@ -775,10 +775,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <button type="button" class="td-otp-again" onclick="tdRegOtpSend()">‹ Gửi lại mã</button>
       </div>
       <div class="td-otp-hint" id="tdRegOtpHint">Mã 6 số gửi tới Gmail · có hiệu lực 5 phút · phải xác thực mới đăng ký được</div>
-      <div class="td-otp-admin" id="tdRegOtpAdmin" style="display:none">
-        <input id="tdRegOtpUrl" type="url" placeholder="https://xxx.onrender.com">
-        <button type="button" onclick="tdOtpSaveFrom('tdRegOtpUrl')">Lưu</button>
-      </div>
+      <!-- BẢN 23 · Link OTP nằm cố định trong otp-config.js: KHÔNG còn ô dán link, KHÔNG còn nút Lưu -->
     </div>
     <div class="td-auth-field"><i class="fas fa-tag"></i><input id="tdRegNick" type="text" placeholder="Biệt danh" autocomplete="off" required></div>
     <div class="td-auth-field"><i class="fas fa-phone"></i><input id="tdRegPhone" type="tel" placeholder="Điện thoại (không bắt buộc)" autocomplete="off"></div>
@@ -802,7 +799,8 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
              -> đúng mã hiện TÍCH XANH ✅ -> tự nhảy sang bước đặt mật khẩu.
      Bước 2 (ẩn, giữ để tương thích code cũ).
      Bước 3: Mật khẩu mới + Nhập lại mật khẩu -> "Đặt lại mật khẩu".
-     Link server lấy từ otp-config.js / ?otp= / tdOtpSet(). Không sửa index.html.
+     BẢN 23 · Link server lấy cố định từ otp-config.js: mọi user dùng chung,
+     không còn ô dán link, không còn nút Lưu, không sửa index.html khi có link.
      ================================================================== -->
 <div id="tdForgotOverlay" aria-hidden="true">
   <div class="td-fg-box">
@@ -826,11 +824,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <button class="td-fg-link" onclick="tdForgotSend()">‹ Gửi lại mã <span id="tdFgTimer"></span></button>
       </div>
 
-      <!-- Admin dán link Render 1 lần (dùng chung với tdOtpSet) -->
-      <div class="td-fg-admin" id="tdFgAdmin" style="display:none">
-        <input id="tdFgOtpUrl" type="url" placeholder="https://xxx.onrender.com">
-        <button type="button" onclick="tdOtpSaveFrom('tdFgOtpUrl')">Lưu</button>
-      </div>
+      <!-- BẢN 23 · Link OTP nằm cố định trong otp-config.js: KHÔNG còn ô dán link, KHÔNG còn nút Lưu -->
 
       <!-- Giữ id cũ để các chỗ gọi bản trước không văng lỗi -->
       <div class="td-fg-code" id="tdFgCode" style="display:none"><span>Mã xác thực: <b id="tdFgCodeVal">------</b></span></div>
@@ -891,11 +885,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 .td-fg-link{ width:100%; background:none; border:0; color:#94a3b8; cursor:pointer;
   font-family:'Poppins',sans-serif; font-size:12px; padding:12px 0 0; }
 .td-fg-msg{ min-height:20px; margin-top:12px; font-size:12px; line-height:1.5; text-align:center; }
-.td-fg-admin{ display:flex; gap:8px; margin-top:12px; }
-.td-fg-admin input{ flex:1; min-width:0; padding:10px; border-radius:10px; border:1px solid #334155;
-  background:#0b1727; color:#fff; font-size:12px; font-family:'Poppins',sans-serif; outline:none; }
-.td-fg-admin button{ padding:0 14px; border:0; border-radius:10px; background:#2dd4bf;
-  color:#04211e; font-weight:800; cursor:pointer; font-family:'Poppins',sans-serif; font-size:12px; }
+/* BẢN 23 · đã bỏ ô dán link server (link nằm trong otp-config.js) */
 </style>
 <script>
 (function () {
@@ -938,7 +928,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     var tick = $('tdFgTick'); if (tick) tick.style.display = 'none';
     var ci = $('tdFgCodeInput'); if (ci) { ci.value = ''; ci.disabled = false; }
     var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = false; vb.textContent = '✅ Xác thực'; }
-    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'none';
+    /* BẢN 23: không còn ô admin để ẩn */
     var sb = $('tdFgSendBtn'); if (sb) { sb.disabled = false; sb.textContent = '📧 Gửi mã OTP'; }
     step(oob ? 3 : 1); msg('');
   };
@@ -952,20 +942,12 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     var el = $('tdFgCodeInput'); if (el) el.focus();
     msg('Dán mã 6 số trong Gmail vào ô rồi bấm "Xác thực" nhé', '#5eead4');
   };
-  window.tdOtpSaveFrom = function (inputId) {
-    var el = $(inputId), v = el ? el.value.trim() : '';
-    if (!/^https?:\/\//i.test(v)) { msg('Link phải bắt đầu bằng https://', '#fda4af'); return; }
-    if (window.tdOtpSet) window.tdOtpSet(v);
-    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'none';
-    var adm2 = document.getElementById('tdRegOtpAdmin'); if (adm2) adm2.style.display = 'none';
-    msg('✅ Đã lưu link OTP server. Bấm "Gửi mã OTP" lại nhé', '#5eead4');
+  /* BẢN 23 · Giữ stub để code bản cũ gọi vào không văng lỗi.
+     Link giờ nằm cố định trong otp-config.js, user không dán gì nữa. */
+  window.tdOtpSaveFrom = function () {
+    msg('Link OTP do admin điền 1 dòng trong otp-config.js, không dán trên web nữa nhé', '#5eead4');
   };
-  function needServer() {
-    if (window.TD_OTP_URL) return true;
-    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'flex';
-    msg('⚠ Chưa có link OTP server. Dán link Render vào ô bên dưới (1 lần duy nhất) hoặc điền otp-config.js rồi push lại.', '#fda4af');
-    return false;
-  }
+  function needServer() { return !!(window.TD_OTP_URL || window.CONVEX_URL); }
   window.tdForgotSend = async function () {
     var el = $('tdFgMail'), m = el ? el.value.trim().toLowerCase() : '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) { msg('Nhập đúng Gmail đã đăng ký nhé', '#fda4af'); return; }
@@ -985,7 +967,9 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     var mm = $('tdFgMailMask'), m3 = $('tdFgMailMask3');
     if (mm) mm.textContent = mask(m); if (m3) m3.textContent = mask(m);
     var b = $('tdFgOtpBlock'); if (b) b.style.display = 'block';
-    msg('✅ Đã gửi mã 6 số tới Gmail (cả Thư rác). Nhập mã rồi bấm "Xác thực" nhé', '#5eead4');
+    msg(window.TD_OTP_DEV_CODE
+      ? '✅ Mã OTP (chế độ test): ' + window.TD_OTP_DEV_CODE + ' · nhập rồi bấm "Xác thực" nhé'
+      : '✅ Đã gửi mã 6 số tới Gmail (cả Thư rác). Nhập mã rồi bấm "Xác thực" nhé', '#5eead4');
     countdown(60);
     if (ci) ci.focus();
   };
@@ -994,7 +978,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     if (verified) { step(3); return; }
     var el = $('tdFgCodeInput'), v = el ? el.value.trim() : '';
     if (!/^\d{6}$/.test(v)) { msg('Nhập đúng 6 chữ số trong Gmail nhé', '#fda4af'); return; }
-    if (!window.TD_OTP_URL) { needServer(); return; }
+    if (!window.TD_OTP_URL && !window.CONVEX_URL) { return; }
     var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = true; vb.textContent = '⏳ Đang kiểm tra...'; }
     msg('Hệ thống đang kiểm tra mã...');
     var ok = await window.tdOtpVerify(mail, v);
@@ -1804,22 +1788,22 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
      Firebase vẫn lo đăng nhập Google; Convex lo số dư + giới hạn nhiệm vụ/ngày.
      Không còn SDK bên thứ ba, không còn key tĩnh: gọi thẳng Functions HTTP API bằng fetch. -->
 <script>
-  window.CONVEX_URL = 'https://fabulous-capybara-90.convex.cloud';
+  /* BAN 24 · 1 LINK DUY NHAT: otp-config.js (nap o dong 4) la nguon chan ly. */
+  window.CONVEX_URL = window.TD_CONVEX_URL || 'https://tough-canary-511.convex.cloud';
   /* Đổi thành true SAU khi đã điền Firebase Project ID trong convex/auth.config.js
      và chạy `npx convex env set STRICT_AUTH 1`. Giữ false để web chạy ngay,
      không bị chặn bởi header token trong lúc chưa cấu hình xong. */
   window.TD_CONVEX_AUTH = false;
 
-  /* ===== BẢN 14 · OTP SERVER: CÓ LINK RENDER KHÔNG CẦN SỬA FILE ========
-     Thứ tự ưu tiên (cao -> thấp):
-     1) Mở ĐÚNG 1 LẦN: https://tuidiemonline.xyz/?otp=https://xxx.onrender.com
-        -> web tự lưu link vĩnh viễn vào máy, những lần sau không cần ?otp nữa.
-     2) localStorage 'td_otp_url'  (hoặc gõ Console: tdOtpSet('https://...'))
-     3) TD_OTP_DEFAULT bên dưới   (để '' = chưa bật OTP).
-     Gõ tdOtpSet('') để tắt. Chỉ nhận http/https, bỏ qua giá trị lạ.
-     Chưa bật OTP: đăng ký / đăng nhập chạy ngay, KHÔNG còn khung
-     "Xác thực Gmail" và KHÔNG còn mã 6 số giả hiện trên màn hình.
-     server.cjs đã có CORS + trả JSON nên gọi từ GitHub Pages không bị chặn. */
+  /* ===== BẢN 24 · OTP CHẠY TRÊN CHÍNH LINK CONVEX =====================
+     CHỈ CÓ 1 LINK: window.CONVEX_URL (tough-canary-511.convex.cloud).
+     Gửi mã / xác thực = 2 mutation tasks:requestOtp / tasks:verifyOtp,
+     gọi qua tdRestRpc -> POST /api/mutation. Không còn Render bắt buộc,
+     không còn ô dán link, không còn ?otp=, không cần F12, không cần nhớ
+     link thứ 2. OTP là BẮT BUỘC khi đăng ký / quên mật khẩu.
+     Giai đoạn test: mã 6 số hiện ngay trên form (server trả devCode).
+     Khi đông user: điền link Render vào TD_OTP_DEFAULT của otp-config.js
+     -> tự ưu tiên gửi mail Gmail thật, Convex vẫn làm dự phòng. */
   window.TD_OTP_DEFAULT = window.TD_OTP_DEFAULT || '';   // otp-config.js có thể set sẵn (BẢN 22)
   window.tdOtpSet = function (u) {
     var v = String(u || '').trim().replace(/\/+$/, '');
@@ -1829,6 +1813,11 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     return v;
   };
   (function () {
+    /* BẢN 23: otp-config.js là NGUỒN CHÂN LÝ cho mọi user.
+       localStorage chỉ dùng dự phòng KHI config còn trống, và link giả
+       "xxx.onrender.com" (lỡ bấm Lưu ở bản cũ) bị xoá sạch. */
+    var cfg = String(window.TD_OTP_DEFAULT || '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(cfg) || /xxx\.onrender\.com/i.test(cfg)) cfg = '';
     var u = '';
     try {
       var q = new URLSearchParams(location.search).get('otp');
@@ -1837,45 +1826,99 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         localStorage.setItem('td_otp_url', u);
       } else {
         u = localStorage.getItem('td_otp_url') || '';
-        /* BẢN 22: link cũ hỏng KHÔNG được che khuất otp-config.js */
-        if (u && !/^https?:\/\//i.test(u)) u = '';
       }
+      if (u && (!/^https?:\/\//i.test(u) || /xxx\.onrender\.com/i.test(u))) {
+        u = ''; localStorage.removeItem('td_otp_url');
+      }
+      if (cfg) localStorage.removeItem('td_otp_url');  /* config chung thắng link máy lẻ */
     } catch (e) {}
-    var v = String(u || window.TD_OTP_DEFAULT || '').trim().replace(/\/+$/, '');
+    var v = (cfg || u || '').trim().replace(/\/+$/, '');
     window.TD_OTP_URL = /^https?:\/\//i.test(v) ? v : '';
   })();
   window.TD_OTP_REQUIRED = false;   // true = bắt nhập OTP ở bước xác thực
   window.tdOtpRemote = false;       // true = mã OTP nằm ở Gmail
   window.tdOtpSkip = false;         // true = chưa bật OTP, bỏ qua bước mã
   window.TD_OTP_LAST_MSG = '';
+  /* BAN 24 · OTP qua Convex Functions HTTP API (cung 1 link voi coin/nhiem vu).
+     tdRestRpc duoc dinh nghia o duoi nhung chi goi luc user bam nut -> da san sang. */
+  window.TD_OTP_DEV_CODE = '';
+  window.tdOtpViaConvex = async function (name, email, code) {
+    try {
+      var a = { p_email: String(email || '').toLowerCase() };
+      if (code) a.p_otp = String(code).trim();
+      var j = await window.tdRestRpc(name, a);
+      if (j && j.ok) {
+        if (j.devCode) window.TD_OTP_DEV_CODE = String(j.devCode);
+        else if (name === 'otp_verify') window.TD_OTP_DEV_CODE = '';
+        return true;
+      }
+      window.TD_OTP_LAST_MSG = (j && j.msg) || 'server OTP (Convex) tu choi';
+    } catch (e) {
+      window.TD_OTP_LAST_MSG = 'khong goi duoc Convex: ' + (e && e.message ? e.message : e);
+    }
+    return false;
+  };
   window.tdOtpRequest = async function (email) {
     var base = String(window.TD_OTP_URL || '').replace(/\/+$/, '');
     window.TD_OTP_LAST_MSG = '';
-    if (!base) { window.TD_OTP_LAST_MSG = 'chưa có link OTP server'; return false; }
-    try {
-      var r = await fetch(base + '/api/request-otp', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: String(email || '').toLowerCase() })
-      });
-      var j = await r.json();
-      if (!(j && j.ok)) { window.TD_OTP_LAST_MSG = (j && j.msg) || ('server trả HTTP ' + r.status); return false; }
-      return true;
-    } catch (e) { window.TD_OTP_LAST_MSG = 'không kết nối được server (CORS / Render đang ngủ)'; return false; }
+    if (!base) return window.tdOtpViaConvex('otp_request', email);
+    var last = 'server OTP đang thức dậy (Render cold start)';
+    /* Render free ngủ sau ~15p: lần gọi đầu có thể treo 30-60s.
+       Thử 2 lần, mỗi lần timeout 15s, nghỉ 3s giữa 2 lần. */
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var to = ctl ? setTimeout(function () { ctl.abort(); }, 15000) : null;
+      try {
+        var opt = {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: String(email || '').toLowerCase() })
+        };
+        if (ctl) opt.signal = ctl.signal;
+        var r = await fetch(base + '/api/request-otp', opt);
+        if (to) clearTimeout(to);
+        var j = await r.json();
+        if (j && j.ok) return true;
+        last = (j && j.msg) || ('server trả HTTP ' + r.status);
+        /* Lỗi cấu hình Gmail thì retry cũng vô dụng -> dừng ngay */
+        if (/GMAIL_|Loi gui mail|Chua dat/i.test(last)) break;
+      } catch (e) {
+        if (to) clearTimeout(to);
+        last = 'server OTP đang thức dậy (Render cold start)';
+      }
+      if (attempt === 0) await new Promise(function (res) { setTimeout(res, 3000); });
+    }
+    if (await window.tdOtpViaConvex('otp_request', email)) return true;
+    window.TD_OTP_LAST_MSG = last + ' · đợi ~30s rồi bấm Gửi mã lại nhé';
+    return false;
   };
   window.tdOtpVerify = async function (email, code) {
     var base = String(window.TD_OTP_URL || '').replace(/\/+$/, '');
     window.TD_OTP_LAST_MSG = '';
-    if (!base) { window.TD_OTP_LAST_MSG = 'chưa có link OTP server'; return false; }
-    try {
-      var r = await fetch(base + '/api/verify-otp', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: String(email || '').toLowerCase(),
-                               otp: String(code || '').trim() })
-      });
-      var j = await r.json();
-      if (!(j && j.ok)) { window.TD_OTP_LAST_MSG = (j && j.msg) || 'mã không đúng'; return false; }
-      return true;
-    } catch (e) { window.TD_OTP_LAST_MSG = 'không kết nối được server'; return false; }
+    if (!base) return window.tdOtpViaConvex('otp_verify', email, code);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var to = ctl ? setTimeout(function () { ctl.abort(); }, 15000) : null;
+      try {
+        var opt = {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: String(email || '').toLowerCase(),
+                                 otp: String(code || '').trim() })
+        };
+        if (ctl) opt.signal = ctl.signal;
+        var r = await fetch(base + '/api/verify-otp', opt);
+        if (to) clearTimeout(to);
+        var j = await r.json();
+        if (j && j.ok) return true;
+        window.TD_OTP_LAST_MSG = (j && j.msg) || 'mã không đúng';
+        return false;   /* mã sai / hết hạn: KHÔNG retry */
+      } catch (e) {
+        if (to) clearTimeout(to);
+        window.TD_OTP_LAST_MSG = 'server OTP đang thức dậy, thử Xác thực lại nhé';
+      }
+      if (attempt === 0) await new Promise(function (res) { setTimeout(res, 3000); });
+    }
+    if (await window.tdOtpViaConvex('otp_verify', email, code)) return true;
+    return false;
   };
 
   /* Tên RPC cũ -> tên hàm Convex. Vẫn giữ nguyên p_uid / p_type / p_day / p_reward...
@@ -1898,7 +1941,10 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     register_profile:       { path: 'tasks:registerProfile',     kind: 'mutation' },
     my_profile:             { path: 'tasks:myProfile',           kind: 'query' },
     /* BẢN 22 · kiểm tra trùng tên đăng nhập / biệt danh */
-    check_name:             { path: 'tasks:checkName',           kind: 'query' }
+    check_name:             { path: 'tasks:checkName',           kind: 'query' },
+    /* BAN 24 · OTP nam tren cung deployment Convex */
+    otp_request:            { path: 'tasks:requestOtp',          kind: 'mutation' },
+    otp_verify:             { path: 'tasks:verifyOtp',           kind: 'mutation' }
   };
 
   window.tdRestRpc = async function (name, args) {
@@ -11166,13 +11212,15 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
 </script>
 
 <!-- ==================================================================
-     BẢN 22 · TỔNG HỢP MỌI YÊU CẦU
+     BẢN 23 · TỔNG HỢP MỌI YÊU CẦU
      1) Form đăng ký: xoá chữ "(bắt buộc)", chỉ giữ "(không bắt buộc)".
      2) Ô Gửi mã OTP + ô nhập 6 số + nút Xác thực + TÍCH XANH ngay dưới Gmail.
      3) Mật khẩu mạnh: >=8 ký tự, chữ HOA + thường + số + ký tự đặc biệt.
      4) Tên đăng nhập != Biệt danh; cả hai phải DUY NHẤT (Convex checkName).
      5) "Đổi mật khẩu" chữ trắng; Gmail trong Cài đặt không bị cụt chữ.
      6) Quên mật khẩu ngoài màn đăng nhập: OTP đầy đủ (đã thay ở khối trên).
+     7) BẢN 23: bỏ ô dán link + nút Lưu; link OTP cố định trong otp-config.js
+        cho mọi user; tự dọn link giả; tự retry khi Render đang ngủ.
      ================================================================== -->
 <style id="td-ban22-css">
 .td-reg-otp{ margin:2px 0 4px !important; padding:12px !important; border-radius:14px !important;
@@ -11197,13 +11245,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
 .td-otp-hint{ margin-top:8px !important; font-size:11px !important; line-height:1.5 !important; color:#94a3b8 !important; }
 .td-otp-hint.warn{ color:#fbbf24 !important; }
 .td-otp-hint.ok{ color:#5eead4 !important; }
-.td-otp-admin{ display:flex !important; gap:8px !important; margin-top:10px !important; }
-.td-otp-admin input{ flex:1 !important; min-width:0 !important; padding:10px !important; border-radius:10px !important;
-  border:1px solid #334155 !important; background:#0b1727 !important; color:#fff !important;
-  font-size:12px !important; font-family:'Poppins',sans-serif !important; outline:none !important; }
-.td-otp-admin button{ padding:0 14px !important; border:0 !important; border-radius:10px !important;
-  background:#2dd4bf !important; color:#04211e !important; font-weight:800 !important; cursor:pointer !important;
-  font-family:'Poppins',sans-serif !important; font-size:12px !important; }
+/* BẢN 23 · đã bỏ ô dán link server (link nằm trong otp-config.js) */
 /* Gmail trong Cài đặt: hiện đủ, xuống dòng thay vì cụt "support.tuidiemonl..." */
 .st-row-value.st-mail-value{ max-width:66% !important; overflow:visible !important;
   text-overflow:clip !important; white-space:normal !important; word-break:break-all !important;
@@ -11224,8 +11266,8 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     var e = $('tdRegOtpHint'); if (!e) return;
     e.textContent = t; e.className = 'td-otp-hint' + (cls ? ' ' + cls : '');
   }
-  function showAdmin(show) { var e = $('tdRegOtpAdmin'); if (e) e.style.display = show ? 'flex' : 'none'; }
-  function serverReady() { return !!window.TD_OTP_URL; }
+  function showAdmin() { /* BẢN 23 · đã bỏ ô dán link: giữ hàm rỗng để code cũ không lỗi */ }
+  function serverReady() { return !!(window.TD_OTP_URL || window.CONVEX_URL); }
   function resetOtp() {
     st.ok = false; st.mail = '';
     var tick = $('tdRegOtpTick'); if (tick) tick.style.display = 'none';
@@ -11253,8 +11295,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     var m = $('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) { toast('Nhập đúng Gmail ở ô trên trước nhé'); return; }
     if (!serverReady()) {
-      showAdmin(true);
-      hint('⚠ Chưa có link OTP server. Dán link Render vào ô bên dưới (1 lần) hoặc điền otp-config.js rồi push lại.', 'warn');
+      hint('⚠ Chưa có link server OTP', 'warn');
       return;
     }
     resetOtp();
@@ -11268,7 +11309,9 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     }
     st.mail = m;
     var box = $('tdRegOtpVerify'); if (box) box.style.display = 'block';
-    hint('✅ Đã gửi mã tới Gmail (cả Thư rác). Nhập 6 số rồi bấm "Xác thực" nhé', 'ok');
+    hint(window.TD_OTP_DEV_CODE
+      ? '✅ Mã OTP (chế độ test): ' + window.TD_OTP_DEV_CODE + ' · nhập 6 số rồi bấm "Xác thực" nhé'
+      : '✅ Đã gửi mã tới Gmail (cả Thư rác). Nhập 6 số rồi bấm "Xác thực" nhé', 'ok');
     countdown(60);
     var ci = $('tdRegOtpCode'); if (ci) ci.focus();
   };
@@ -11276,7 +11319,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     if (st.ok) return;
     var ci = $('tdRegOtpCode'), v = ci ? ci.value.trim() : '';
     if (!/^\d{6}$/.test(v)) { hint('Nhập đúng 6 chữ số trong Gmail nhé', 'warn'); return; }
-    if (!serverReady()) { showAdmin(true); return; }
+    if (!serverReady()) { hint('⚠ Chưa có link server OTP', 'warn'); return; }
     var ok = $('tdRegOtpOk'); if (ok) { ok.disabled = true; ok.textContent = '⏳ Đang kiểm tra...'; }
     hint('Hệ thống đang kiểm tra mã...');
     var good = await window.tdOtpVerify(st.mail || ($('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : ''), v);
@@ -11322,8 +11365,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
         return;
       }
     } else {
-      showAdmin(true);
-      hint('⚠ OTP server chưa cấu hình → tạm cho đăng ký. Điền 1 dòng vào otp-config.js rồi push là mọi user bắt buộc OTP.', 'warn');
+      hint('⚠ Chưa có link server → tạm cho đăng ký.', 'warn');
     }
     return origRegister ? origRegister.apply(this, arguments) : undefined;
   };
@@ -11333,15 +11375,11 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     if (e && e.target && e.target.id === 'tdRegMail') resetOtp();
   });
   document.addEventListener('DOMContentLoaded', function () {
-    if (!serverReady()) {
-      showAdmin(true);
-      hint('⚠ OTP server chưa cấu hình. Dán link Render 1 lần hoặc điền otp-config.js rồi push lại.', 'warn');
-    }
+    hint(serverReady()
+      ? 'Mã OTP 6 số · hiệu lực 5 phút · bấm "Gửi mã OTP" rồi "Xác thực" (tích xanh ✅) mới đăng ký được'
+      : 'Chưa có link server · OTP tạm tắt',
+      serverReady() ? '' : 'warn');
   });
-  if (document.readyState !== 'loading' && !serverReady()) {
-    showAdmin(true);
-    hint('⚠ OTP server chưa cấu hình. Dán link Render 1 lần hoặc điền otp-config.js rồi push lại.', 'warn');
-  }
 })();
 </script>
 

@@ -1,5 +1,5 @@
 /* ================================================================
-TÚI ĐIỂM ONLINE · SERVER  (BẢN 11 · ADMIN TỔNG (server giữ nguyên logic Bản 10): ONLINE / BIỆT DANH / LỊCH SỬ 2 NGÀY / CỘNG-TRỪ COIN / KHOÁ ACC / THÔNG BÁO CHUNG)
+TÚI ĐIỂM ONLINE · SERVER  (BẢN 25 · ADMIN TỔNG (server giữ nguyên logic Bản 10): ONLINE / BIỆT DANH / LỊCH SỬ 2 NGÀY / CỘNG-TRỪ COIN / KHOÁ ACC / THÔNG BÁO CHUNG)
 File này copy thành: convex/tasks.js  ->  npx convex deploy
 
 LỖI THẬT (log 00:44): "Failed to insert or update a document in table
@@ -293,6 +293,8 @@ const A = {
   /* BẢN 12 · đăng ký tay: lưu username -> Gmail + seed ví 0 coin */
   p_email: v.optional(v.string()),
   p_phone: v.optional(v.string()),
+  /* BAN 24 · OTP 6 so */
+  p_otp: v.optional(v.string()),
 };
 
 /* ============ 1. ĐĂNG NHẬP (chuỗi đăng nhập, KHÔNG phải chuỗi vé) ==== */
@@ -1288,7 +1290,7 @@ export const adminRedeemHistory = query({
    Mật khẩu vẫn 100% do Firebase giữ -> đúng mật khẩu lúc đăng ký.
    Không đụng schema.ts, không cần auth.config.js, không đổi key admin.
    ================================================================ */
-/* BẢN 22 · Kiểm tra Tên đăng nhập / Biệt danh đã có người dùng chưa.
+/* BẢN 23 · Kiểm tra Tên đăng nhập / Biệt danh đã có người dùng chưa.
    So sánh lowercase, bỏ khoảng trắng -> "Quan12" và " quan12 " vẫn trùng.
    Bảng td_users schemaless nên không cần sửa schema.ts. */
 export const checkName = query({
@@ -1299,7 +1301,7 @@ export const checkName = query({
     const all = await rowsOf(ctx, T_USERS, null);
     return {
       ok: true,
-      usernameTaken: !!u && all.some((x) => String(x.username || "").toLowerCase() === u),
+      usernameTaken: !!u && all.some((x) => String(x.username || "").trim().toLowerCase() === u),
       nicknameTaken: !!n && all.some((x) => String(x.nickname || "").trim().toLowerCase() === n),
     };
   },
@@ -1362,7 +1364,7 @@ export const registerProfile = mutation({
     const clashMail = all.find((x) =>
       String(x.email || "").toLowerCase() === email && String(x.uid) !== uid);
     if (clashMail) return { ok: false, msg: "Gmail này đã thuộc tài khoản khác" };
-    /* BẢN 22 · Biệt danh cũng phải duy nhất (chặn cả phía server, chống F12) */
+    /* BẢN 23 · Biệt danh cũng phải duy nhất (chặn cả phía server, chống F12) */
     const clashNick = nick ? all.find((x) =>
       String(x.nickname || "").trim().toLowerCase() === nick.toLowerCase() &&
       String(x.uid) !== uid) : null;
@@ -1400,5 +1402,86 @@ export const registerProfile = mutation({
       nickname: nick || String(u.nickname || ""),
       coins: w ? coinsOf(w) : 0,
     };
+  },
+});
+
+/* ================================================================
+   BẢN 24 · OTP 6 SỐ CHẠY TRÊN CHÍNH DEPLOYMENT NÀY
+   ----------------------------------------------------------------
+   Web chỉ cần 1 link: https://tough-canary-511.convex.cloud
+   Frontend gọi POST /api/mutation { path: 'tasks:requestOtp' }
+   và { path: 'tasks:verifyOtp' } (xem TD_RPC_MAP trong index.html).
+
+   Bảng td_otp là schemaless -> KHÔNG sửa schema.ts, KHÔNG lỗi validator.
+   Mỗi lần "Gửi mã" sinh mã mới và XOÁ mã cũ của email đó (chống dùng lại).
+   Hết hạn 5 phút · tối đa 5 lần đoán · verify đúng thì đánh dấu verified.
+
+   ⚠️ CHẾ ĐỘ TEST: Convex mutation KHÔNG gửi email, nên trả kèm devCode
+   để hiện ngay trên form. Khi có nhiều user: điền link Render (server.cjs
+   + Gmail SMTP) vào TD_OTP_DEFAULT của otp-config.js -> web tự ưu tiên
+   gửi mail thật, 2 hàm này vẫn làm dự phòng. Đúng cam kết "mốt đổi sau".
+   ================================================================ */
+const T_OTP = "td_otp";
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_MAX_TRIES = 5;
+
+function otpEmail(args) {
+  return String((args && args.p_email) || '').trim().toLowerCase();
+}
+async function otpRows(ctx, email) {
+  return await rowsOf(ctx, T_OTP, (q) => q.eq(q.field("email"), email));
+}
+
+export const requestOtp = mutation({
+  args: A,
+  handler: async (ctx, args) => {
+    const email = otpEmail(args);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, msg: 'Email không hợp lệ' };
+    }
+    const now = Date.now();
+    /* Gửi lại = mã mới, mã cũ vô hiệu ngay */
+    const olds = await otpRows(ctx, email);
+    for (const r of olds) { try { await ctx.db.delete(r._id); } catch (e) {} }
+    const code = String(100000 + Math.floor(Math.random() * 900000));
+    await ctx.db.insert(T_OTP, {
+      email, code, createdAt: now, expiresAt: now + OTP_TTL_MS,
+      tries: 0, verified: false,
+    });
+    return {
+      ok: true,
+      mailSent: false,          // true khi sau này bật Render/Resend
+      devCode: code,            // chế độ test: hiện ngay trên form
+      msg: 'Đã tạo mã OTP 6 số (hiệu lực 5 phút)',
+    };
+  },
+});
+
+export const verifyOtp = mutation({
+  args: A,
+  handler: async (ctx, args) => {
+    const email = otpEmail(args);
+    const code = String((args && args.p_otp) || '').trim();
+    if (!/^\d{6}$/.test(code)) return { ok: false, msg: 'Mã phải đúng 6 chữ số' };
+    const rows = await otpRows(ctx, email);
+    if (!rows.length) return { ok: false, msg: 'Chưa có mã, bấm "Gửi mã OTP" trước nhé' };
+    rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const r = rows[0];
+    const now = Date.now();
+    if (r.verified) return { ok: true, msg: 'Đã xác thực' };
+    if (now > Number(r.expiresAt || 0)) {
+      try { await ctx.db.delete(r._id); } catch (e) {}
+      return { ok: false, msg: 'Mã đã hết hạn (5 phút), bấm Gửi mã lại nhé' };
+    }
+    if (Number(r.tries || 0) >= OTP_MAX_TRIES) {
+      try { await ctx.db.delete(r._id); } catch (e) {}
+      return { ok: false, msg: 'Nhập sai quá 5 lần, bấm Gửi mã lại nhé' };
+    }
+    if (String(r.code) !== code) {
+      await ctx.db.patch(r._id, { tries: Number(r.tries || 0) + 1 });
+      return { ok: false, msg: 'Mã OTP không đúng' };
+    }
+    await ctx.db.patch(r._id, { verified: true, verifiedAt: now });
+    return { ok: true, msg: 'Xác thực thành công' };
   },
 });
