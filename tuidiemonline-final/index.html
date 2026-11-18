@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<script src="otp-config.js"></script>
 <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
 <script type="text/javascript">
     aclib.runAutoTag({
@@ -756,12 +757,33 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       <div class="td-auth-rule"></div>
     </div>
     <div class="td-auth-title">Đăng Ký Tài Khoản</div>
-    <div class="td-auth-field"><i class="fas fa-id-badge"></i><input id="tdRegUser" type="text" placeholder="Tên đăng nhập (bắt buộc)" autocomplete="off" required></div>
-    <div class="td-auth-field"><i class="fas fa-at"></i><input id="tdRegMail" type="email" placeholder="Gmail (bắt buộc)" autocomplete="off" required></div>
-    <div class="td-auth-field"><i class="fas fa-tag"></i><input id="tdRegNick" type="text" placeholder="Biệt danh (bắt buộc)" autocomplete="off" required></div>
+    <div class="td-auth-field"><i class="fas fa-id-badge"></i><input id="tdRegUser" type="text" placeholder="Tên đăng nhập" autocomplete="off" required></div>
+    <div class="td-auth-field"><i class="fas fa-at"></i><input id="tdRegMail" type="email" placeholder="Gmail" autocomplete="off" required></div>
+    <!-- BẢN 22 · OTP ĐĂNG KÝ: nằm NGAY DƯỚI ô Gmail -->
+    <div class="td-reg-otp" id="tdRegOtpBox">
+      <div class="td-otp-row">
+        <button type="button" class="td-otp-send" id="tdRegOtpSend" onclick="tdRegOtpSend()">📧 Gửi mã OTP</button>
+        <span class="td-otp-timer" id="tdRegOtpTimer"></span>
+      </div>
+      <div class="td-otp-verify" id="tdRegOtpVerify" style="display:none">
+        <div class="td-auth-field td-otp-field">
+          <i class="fas fa-shield-alt"></i>
+          <input id="tdRegOtpCode" type="text" inputmode="numeric" maxlength="6" placeholder="Nhập mã OTP 6 số" autocomplete="one-time-code">
+          <span class="td-otp-tick" id="tdRegOtpTick" style="display:none" aria-label="Đã xác thực">✅</span>
+        </div>
+        <button type="button" class="td-otp-ok" id="tdRegOtpOk" onclick="tdRegOtpVerify()">✅ Xác thực</button>
+        <button type="button" class="td-otp-again" onclick="tdRegOtpSend()">‹ Gửi lại mã</button>
+      </div>
+      <div class="td-otp-hint" id="tdRegOtpHint">Mã 6 số gửi tới Gmail · có hiệu lực 5 phút · phải xác thực mới đăng ký được</div>
+      <div class="td-otp-admin" id="tdRegOtpAdmin" style="display:none">
+        <input id="tdRegOtpUrl" type="url" placeholder="https://xxx.onrender.com">
+        <button type="button" onclick="tdOtpSaveFrom('tdRegOtpUrl')">Lưu</button>
+      </div>
+    </div>
+    <div class="td-auth-field"><i class="fas fa-tag"></i><input id="tdRegNick" type="text" placeholder="Biệt danh" autocomplete="off" required></div>
     <div class="td-auth-field"><i class="fas fa-phone"></i><input id="tdRegPhone" type="tel" placeholder="Điện thoại (không bắt buộc)" autocomplete="off"></div>
-    <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass" type="password" placeholder="Mật khẩu (bắt buộc)" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye" onclick="tdToggleRegPass()"></i></div>
-    <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass2" type="password" placeholder="Nhập lại mật khẩu (bắt buộc)" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye td-auth-eye-2" onclick="tdToggleRegPass2()"></i></div>
+    <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass" type="password" placeholder="Mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye" onclick="tdToggleRegPass()"></i></div>
+    <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass2" type="password" placeholder="Nhập lại mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye td-auth-eye-2" onclick="tdToggleRegPass2()"></i></div>
     <div class="td-auth-legal">Bằng cách đăng nhập, bạn đồng ý với<br>
       <a href="javascript:void(0)" onclick="openPolicyModal()">Điều khoản sử dụng</a> và
       <a href="javascript:void(0)" onclick="openPolicyModal()">Chính sách bảo mật</a>
@@ -775,10 +797,12 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 
 
 <!-- ==================================================================
-     BẢN 11 · QUÊN MẬT KHẨU · 3 BƯỚC (Gmail)
-     1. Gửi mã qua Gmail  -> hiện đoạn code để user sao chép
-     2. Xác thực lại Gmail -> Gmail ẩn *** + ô dán mã
-     3. Đặt lại mật khẩu  -> mật khẩu mới + nhập lại
+     BẢN 22 · QUÊN MẬT KHẨU · OTP 6 SỐ NGay DƯỚI Ô GMAIL
+     Bước 1: nhập Gmail -> bấm "Gửi mã OTP" -> hiện ô mã + nút "Xác thực"
+             -> đúng mã hiện TÍCH XANH ✅ -> tự nhảy sang bước đặt mật khẩu.
+     Bước 2 (ẩn, giữ để tương thích code cũ).
+     Bước 3: Mật khẩu mới + Nhập lại mật khẩu -> "Đặt lại mật khẩu".
+     Link server lấy từ otp-config.js / ?otp= / tdOtpSet(). Không sửa index.html.
      ================================================================== -->
 <div id="tdForgotOverlay" aria-hidden="true">
   <div class="td-fg-box">
@@ -788,27 +812,42 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 
     <div class="td-fg-step" id="tdFgStep1">
       <div class="td-fg-field"><i class="fas fa-at"></i><input id="tdFgMail" type="email" placeholder="Gmail đã đăng ký" autocomplete="off"></div>
-      <button class="td-fg-btn" id="tdFgSendBtn" onclick="tdForgotSend()">📧 Gửi mã qua Gmail</button>
-      <div class="td-fg-code" id="tdFgCode" style="display:none" onclick="tdForgotCopyCode()">
-        <span>Mã xác thực: <b id="tdFgCodeVal">------</b></span>
-        <small>Bấm để sao chép · rồi dán vào ô ở bước sau</small>
+      <button class="td-fg-btn" id="tdFgSendBtn" onclick="tdForgotSend()">📧 Gửi mã OTP</button>
+
+      <!-- Hiện NGAY SAU khi gửi mã thành công, cùng màn hình, không chuyển trang -->
+      <div id="tdFgOtpBlock" style="display:none">
+        <div class="td-fg-mail" id="tdFgMailMask">***@gmail.com</div>
+        <div class="td-fg-field td-fg-otp-field">
+          <i class="fas fa-shield-alt"></i>
+          <input id="tdFgCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="Nhập mã OTP 6 số" autocomplete="one-time-code">
+          <span class="td-fg-tick" id="tdFgTick" style="display:none" aria-label="Đã xác thực">✅</span>
+        </div>
+        <button class="td-fg-btn" id="tdFgVerifyBtn" onclick="tdForgotVerify()">✅ Xác thực</button>
+        <button class="td-fg-link" onclick="tdForgotSend()">‹ Gửi lại mã <span id="tdFgTimer"></span></button>
       </div>
+
+      <!-- Admin dán link Render 1 lần (dùng chung với tdOtpSet) -->
+      <div class="td-fg-admin" id="tdFgAdmin" style="display:none">
+        <input id="tdFgOtpUrl" type="url" placeholder="https://xxx.onrender.com">
+        <button type="button" onclick="tdOtpSaveFrom('tdFgOtpUrl')">Lưu</button>
+      </div>
+
+      <!-- Giữ id cũ để các chỗ gọi bản trước không văng lỗi -->
+      <div class="td-fg-code" id="tdFgCode" style="display:none"><span>Mã xác thực: <b id="tdFgCodeVal">------</b></span></div>
       <button class="td-fg-btn td-fg-next" id="tdFgNext" style="display:none" onclick="tdForgotGoStep2()">Tiếp tục xác thực ›</button>
     </div>
 
     <div class="td-fg-step" id="tdFgStep2" style="display:none">
       <div class="td-fg-label">Xác thực lại Gmail</div>
-      <div class="td-fg-mail" id="tdFgMailMask">***@gmail.com</div>
-      <div class="td-fg-field"><i class="fas fa-shield-alt"></i><input id="tdFgCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="Nhập mã xác thực" autocomplete="off"></div>
-      <button class="td-fg-btn" onclick="tdForgotVerify()">✅ Xác thực mã</button>
-      <button class="td-fg-link" onclick="tdForgotBack(1)">‹ Gửi lại mã</button>
+      <div class="td-fg-field"><i class="fas fa-shield-alt"></i><input type="text" maxlength="6" placeholder="Nhập mã xác thực" autocomplete="off"></div>
+      <button class="td-fg-btn" onclick="tdForgotGoStep2()">✅ Xác thực mã</button>
     </div>
 
     <div class="td-fg-step" id="tdFgStep3" style="display:none">
       <div class="td-fg-label">Đặt lại mật khẩu</div>
       <div class="td-fg-mail" id="tdFgMailMask3">***@gmail.com</div>
-      <div class="td-fg-field"><i class="fas fa-lock"></i><input id="tdFgNewPass" type="password" placeholder="Mật khẩu mới" autocomplete="off"></div>
-      <div class="td-fg-field"><i class="fas fa-lock"></i><input id="tdFgNewPass2" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="off"></div>
+      <div class="td-fg-field"><i class="fas fa-lock"></i><input id="tdFgNewPass" type="password" placeholder="Mật khẩu mới" autocomplete="new-password"></div>
+      <div class="td-fg-field"><i class="fas fa-lock"></i><input id="tdFgNewPass2" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password"></div>
       <button class="td-fg-btn" onclick="tdForgotReset()">🔑 Đặt lại mật khẩu</button>
     </div>
     <div class="td-fg-msg" id="tdFgMsg"></div>
@@ -828,32 +867,40 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 .td-fg-title{ font-size:18px; font-weight:800; color:#2dd4bf; margin-bottom:4px; padding-right:34px; }
 .td-fg-sub{ font-size:12px; color:#94a3b8; margin-bottom:18px; line-height:1.5; }
 .td-fg-label{ font-size:13px; font-weight:800; color:#ffffff; margin-bottom:10px; }
-.td-fg-mail{ font-size:13px; font-weight:700; letter-spacing:1px; color:#fbbf24;
-  background:#16233a; border-radius:10px; padding:10px 12px; margin-bottom:12px; text-align:center; }
+.td-fg-mail{ font-size:12.5px; font-weight:700; color:#fbbf24; word-break:break-all;
+  background:#16233a; border-radius:10px; padding:10px 12px; margin:12px 0; text-align:center; }
 .td-fg-field{ display:flex; align-items:center; gap:10px; background:#16233a;
   border:1px solid #334155; border-radius:12px; padding:0 12px; margin-bottom:10px; }
-.td-fg-field i{ color:#2dd4bf; font-size:14px; width:16px; }
+.td-fg-field i{ color:#2dd4bf; font-size:14px; width:16px; flex-shrink:0; }
 .td-fg-field input{ flex:1; min-width:0; border:0; outline:0; background:transparent;
   color:#ffffff; font-family:'Poppins',sans-serif; font-size:13px; padding:12px 0; }
 .td-fg-field input::placeholder{ color:#64748b; }
+.td-fg-field input:disabled{ opacity:.65; }
+.td-fg-otp-field input{ letter-spacing:4px; font-weight:800; font-size:16px; }
+.td-fg-tick{ font-size:20px; flex-shrink:0; animation:tdTickPop .35s ease; }
+@keyframes tdTickPop{ from{ transform:scale(.3); opacity:0; } to{ transform:scale(1); opacity:1; } }
 .td-fg-btn{ width:100%; padding:13px; border:0; border-radius:12px; cursor:pointer;
   font-family:'Poppins',sans-serif; font-size:13.5px; font-weight:800; color:#04211e;
   background:linear-gradient(135deg,#5eead4,#0f766e); margin-top:4px; }
 .td-fg-btn:active{ transform:scale(.98); }
+.td-fg-btn:disabled{ opacity:.55; cursor:not-allowed; }
 .td-fg-btn.td-fg-next{ background:linear-gradient(135deg,#fde68a,#f59e0b); color:#3b2600; margin-top:8px; }
-.td-fg-code{ margin-top:12px; padding:12px; border-radius:12px; cursor:pointer;
+.td-fg-code{ margin-top:12px; padding:12px; border-radius:12px;
   background:#0b1727; border:1px dashed #2dd4bf; text-align:center; }
-.td-fg-code span{ display:block; font-size:14px; color:#ffffff; font-weight:700; }
 .td-fg-code b{ color:#5eead4; font-size:19px; letter-spacing:3px; }
-.td-fg-code small{ display:block; font-size:10.5px; color:#94a3b8; margin-top:4px; }
 .td-fg-link{ width:100%; background:none; border:0; color:#94a3b8; cursor:pointer;
   font-family:'Poppins',sans-serif; font-size:12px; padding:12px 0 0; }
 .td-fg-msg{ min-height:20px; margin-top:12px; font-size:12px; line-height:1.5; text-align:center; }
+.td-fg-admin{ display:flex; gap:8px; margin-top:12px; }
+.td-fg-admin input{ flex:1; min-width:0; padding:10px; border-radius:10px; border:1px solid #334155;
+  background:#0b1727; color:#fff; font-size:12px; font-family:'Poppins',sans-serif; outline:none; }
+.td-fg-admin button{ padding:0 14px; border:0; border-radius:10px; background:#2dd4bf;
+  color:#04211e; font-weight:800; cursor:pointer; font-family:'Poppins',sans-serif; font-size:12px; }
 </style>
 <script>
 (function () {
   'use strict';
-  var mail = '', code = '', oob = '';
+  var mail = '', oob = '', verified = false, timerId = null;
   function $(id) { return document.getElementById(id); }
   function mask(m) {
     m = String(m || ''); var p = m.split('@');
@@ -865,88 +912,111 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
   function step(n) {
     [1, 2, 3].forEach(function (i) { var e = $('tdFgStep' + i); if (e) e.style.display = i === n ? 'block' : 'none'; });
     var t = $('tdFgTitle'), s = $('tdFgSub');
-    if (t) t.textContent = n === 1 ? 'Quên mật khẩu' : (n === 2 ? 'Xác thực lại Gmail' : 'Đặt lại mật khẩu');
-    if (s) s.textContent = n === 1 ? 'Lấy lại mật khẩu qua Gmail đã đăng ký'
-      : (n === 2 ? 'Dán mã vừa sao chép vào ô bên dưới' : 'Nhập mật khẩu mới cho tài khoản');
+    if (t) t.textContent = n === 1 ? 'Quên mật khẩu' : (n === 2 ? 'Xác thực OTP' : 'Đặt lại mật khẩu');
+    if (s) s.textContent = n === 1 ? 'Nhập Gmail → Gửi mã OTP → Xác thực'
+      : (n === 2 ? 'Dán mã 6 số vừa nhận trong Gmail' : 'Nhập mật khẩu mới cho tài khoản');
+  }
+  function strong(p) { return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/.test(p); }
+  function countdown(sec) {
+    var btn = $('tdFgSendBtn'), t = $('tdFgTimer');
+    if (timerId) clearInterval(timerId);
+    var left = sec;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Gửi lại sau ' + left + 's'; }
+    timerId = setInterval(function () {
+      left--;
+      if (t) t.textContent = left > 0 ? '(' + left + 's)' : '';
+      if (btn) btn.textContent = left > 0 ? '⏳ Gửi lại sau ' + left + 's' : '📧 Gửi mã OTP';
+      if (left <= 0) { clearInterval(timerId); timerId = null; if (btn) btn.disabled = false; }
+    }, 1000);
   }
   window.tdOpenForgot = function (oobCode) {
-    oob = String(oobCode || '');
+    oob = String(oobCode || ''); mail = ''; verified = false;
     var ov = $('tdForgotOverlay'); if (!ov) return;
     ov.classList.add('show'); ov.setAttribute('aria-hidden', 'false');
-    var m = $('tdFgMail'); if (m && mail) m.value = mail;
+    var m = $('tdFgMail'); if (m) m.value = '';              /* BẢN 22: không gộp email cũ nữa */
+    var b = $('tdFgOtpBlock'); if (b) b.style.display = 'none';
+    var tick = $('tdFgTick'); if (tick) tick.style.display = 'none';
+    var ci = $('tdFgCodeInput'); if (ci) { ci.value = ''; ci.disabled = false; }
+    var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = false; vb.textContent = '✅ Xác thực'; }
+    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'none';
+    var sb = $('tdFgSendBtn'); if (sb) { sb.disabled = false; sb.textContent = '📧 Gửi mã OTP'; }
     step(oob ? 3 : 1); msg('');
   };
   window.tdCloseForgot = function () {
     var ov = $('tdForgotOverlay'); if (ov) { ov.classList.remove('show'); ov.setAttribute('aria-hidden', 'true'); }
+    if (timerId) { clearInterval(timerId); timerId = null; }
   };
   window.tdForgotBack = function (n) { step(n); msg(''); };
   window.tdForgotGoStep2 = function () {
-    if (!code) { msg('Bấm "Gửi mã qua Gmail" trước nhé', '#fda4af'); return; }
-    var m = $('tdFgMailMask'), m3 = $('tdFgMailMask3');
-    if (m) m.textContent = mask(mail); if (m3) m3.textContent = mask(mail);
-    step(2); msg('');
+    var b = $('tdFgOtpBlock'); if (b) b.style.display = 'block';
+    var el = $('tdFgCodeInput'); if (el) el.focus();
+    msg('Dán mã 6 số trong Gmail vào ô rồi bấm "Xác thực" nhé', '#5eead4');
   };
-  /* Gmail phải TRÙNG với lúc đăng ký: tra local trước, rồi Firestore users */
-  async function mailRegistered(m) {
-    try {
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.indexOf('td_user_') === 0 && String(localStorage.getItem(k)).toLowerCase() === m) return true;
-      }
-    } catch (e) {}
-    try {
-      if (window.fbQuery && window.fbWhere && window.fbCollection && window.fbGetDocs && window.fbDb) {
-        var q = window.fbQuery(window.fbCollection(window.fbDb, 'users'), window.fbWhere('email', '==', m));
-        var s = await window.fbGetDocs(q);
-        if (s && !s.empty) return true;
-      }
-    } catch (e) {}
+  window.tdOtpSaveFrom = function (inputId) {
+    var el = $(inputId), v = el ? el.value.trim() : '';
+    if (!/^https?:\/\//i.test(v)) { msg('Link phải bắt đầu bằng https://', '#fda4af'); return; }
+    if (window.tdOtpSet) window.tdOtpSet(v);
+    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'none';
+    var adm2 = document.getElementById('tdRegOtpAdmin'); if (adm2) adm2.style.display = 'none';
+    msg('✅ Đã lưu link OTP server. Bấm "Gửi mã OTP" lại nhé', '#5eead4');
+  };
+  function needServer() {
+    if (window.TD_OTP_URL) return true;
+    var adm = $('tdFgAdmin'); if (adm) adm.style.display = 'flex';
+    msg('⚠ Chưa có link OTP server. Dán link Render vào ô bên dưới (1 lần duy nhất) hoặc điền otp-config.js rồi push lại.', '#fda4af');
     return false;
   }
   window.tdForgotSend = async function () {
     var el = $('tdFgMail'), m = el ? el.value.trim().toLowerCase() : '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) { msg('Nhập đúng Gmail đã đăng ký nhé', '#fda4af'); return; }
+    if (!needServer()) return;
+    mail = m; verified = false;
+    var tick = $('tdFgTick'); if (tick) tick.style.display = 'none';
+    var ci = $('tdFgCodeInput'); if (ci) { ci.value = ''; ci.disabled = false; }
+    var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = false; vb.textContent = '✅ Xác thực'; }
     var btn = $('tdFgSendBtn'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang gửi...'; }
-    msg('Đang kiểm tra Gmail...');
-    var ok = await mailRegistered(m);
-    if (btn) { btn.disabled = false; btn.textContent = '📧 Gửi mã qua Gmail'; }
-    if (!ok) { msg('Gmail này chưa đăng ký trên hệ thống', '#fda4af'); return; }
-    mail = m;
-    code = String(Math.floor(100000 + Math.random() * 900000));
-    var cv = $('tdFgCodeVal'); if (cv) cv.textContent = code;
-    var cb = $('tdFgCode'); if (cb) cb.style.display = 'block';
-    var nx = $('tdFgNext'); if (nx) nx.style.display = 'block';
-    try { localStorage.setItem('td_fg_code_' + m, code); } catch (e) {}
-    /* Gửi link đặt lại mật khẩu THẬT qua Firebase để mật khẩu mới có hiệu lực */
-    try {
-      if (window.fbSendPasswordReset && window.fbAuth) {
-        await window.fbSendPasswordReset(window.fbAuth, m, {
-          url: location.origin + location.pathname + '?reset=1', handleCodeInApp: true
-        });
-      }
-    } catch (e) {}
-    msg('Đã gửi mã qua Gmail. Bấm vào mã để sao chép rồi bấm "Tiếp tục xác thực" nhé', '#5eead4');
+    msg('Đang gửi mã OTP tới ' + m + '...');
+    var sent = await window.tdOtpRequest(m);
+    if (!sent) {
+      if (btn) { btn.disabled = false; btn.textContent = '📧 Gửi mã OTP'; }
+      msg('Chưa gửi được OTP: ' + (window.TD_OTP_LAST_MSG || 'kiểm tra link server / GMAIL_USER / GMAIL_PASS trên Render') + '. Nhớ check cả Thư rác.', '#fda4af');
+      return;
+    }
+    var mm = $('tdFgMailMask'), m3 = $('tdFgMailMask3');
+    if (mm) mm.textContent = mask(m); if (m3) m3.textContent = mask(m);
+    var b = $('tdFgOtpBlock'); if (b) b.style.display = 'block';
+    msg('✅ Đã gửi mã 6 số tới Gmail (cả Thư rác). Nhập mã rồi bấm "Xác thực" nhé', '#5eead4');
+    countdown(60);
+    if (ci) ci.focus();
   };
-  window.tdForgotCopyCode = function () {
-    if (!code) return;
-    try { navigator.clipboard.writeText(code); } catch (e) {}
-    msg('Đã sao chép mã ' + code + ' · bấm "Tiếp tục xác thực" để dán vào nhé', '#5eead4');
-  };
-  window.tdForgotVerify = function () {
+  window.tdForgotCopyCode = function () { msg('Mã OTP nằm trong Gmail, mở mail rồi dán vào ô nhé', '#5eead4'); };
+  window.tdForgotVerify = async function () {
+    if (verified) { step(3); return; }
     var el = $('tdFgCodeInput'), v = el ? el.value.trim() : '';
-    if (!v) { msg('Dán mã xác thực vào đây nhé', '#fda4af'); return; }
-    if (v !== code) { msg('Mã không đúng, kiểm tra lại nhé', '#fda4af'); return; }
-    var m3 = $('tdFgMailMask3'); if (m3) m3.textContent = mask(mail);
-    step(3); msg('✅ Xác thực Gmail thành công · đặt mật khẩu mới bên dưới', '#5eead4');
+    if (!/^\d{6}$/.test(v)) { msg('Nhập đúng 6 chữ số trong Gmail nhé', '#fda4af'); return; }
+    if (!window.TD_OTP_URL) { needServer(); return; }
+    var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = true; vb.textContent = '⏳ Đang kiểm tra...'; }
+    msg('Hệ thống đang kiểm tra mã...');
+    var ok = await window.tdOtpVerify(mail, v);
+    if (!ok) {
+      if (vb) { vb.disabled = false; vb.textContent = '✅ Xác thực'; }
+      msg('Mã OTP không đúng hoặc đã hết hạn (5 phút). ' + (window.TD_OTP_LAST_MSG || ''), '#fda4af');
+      return;
+    }
+    verified = true;
+    var tick = $('tdFgTick'); if (tick) tick.style.display = 'inline-block';
+    if (el) el.disabled = true;
+    if (vb) { vb.disabled = true; vb.textContent = '✅ Đã xác thực'; }
+    msg('✅ Xác thực thành công · đang mở bước đặt mật khẩu mới...', '#5eead4');
+    setTimeout(function () { step(3); msg('✅ Gmail đã xác thực. Đặt mật khẩu mới bên dưới nhé', '#5eead4'); }, 700);
   };
   window.tdForgotReset = async function () {
     var p1 = $('tdFgNewPass') ? $('tdFgNewPass').value : '';
     var p2 = $('tdFgNewPass2') ? $('tdFgNewPass2').value : '';
     if (!p1 || !p2) { msg('Nhập đủ 2 ô mật khẩu mới nhé', '#fda4af'); return; }
-    if (p1.length < 6) { msg('Mật khẩu mới cần ít nhất 6 ký tự', '#fda4af'); return; }
+    if (!strong(p1)) { msg('Mật khẩu yếu: cần ≥8 ký tự, có chữ HOA, chữ thường, số và ký tự đặc biệt', '#fda4af'); return; }
     if (p1 !== p2) { msg('Mật khẩu nhập lại không khớp!', '#fda4af'); return; }
     try { localStorage.setItem('td_reset_pending_' + mail, btoa(unescape(encodeURIComponent(p1)))); } catch (e) {}
-    /* Có oobCode (user bấm link trong Gmail về web) -> đổi mật khẩu Firebase NGAY */
     if (oob && window.fbConfirmPasswordReset && window.fbAuth) {
       try {
         await window.fbConfirmPasswordReset(window.fbAuth, oob, p1);
@@ -954,9 +1024,9 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         msg('✅ Đặt lại mật khẩu thành công · đăng nhập bằng mật khẩu mới nhé', '#5eead4');
         setTimeout(window.tdCloseForgot, 1800);
         return;
-      } catch (err) { msg('Mã xác thực đã hết hạn · bấm Gửi mã qua Gmail lại nhé', '#fda4af'); return; }
+      } catch (err) { msg('Link đặt lại đã hết hạn · bấm Gửi mã OTP lại nhé', '#fda4af'); return; }
     }
-    msg('✅ Đã lưu mật khẩu mới. Mở Gmail bấm link xác nhận là dùng được ngay nhé', '#5eead4');
+    msg('✅ Đã lưu mật khẩu mới. Đăng nhập lại bằng mật khẩu vừa đặt nhé', '#5eead4');
   };
   /* Firebase gửi link về ?mode=resetPassword&oobCode=... -> tự mở đúng bước 3 */
   try {
@@ -968,7 +1038,6 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
   } catch (e) {}
 })();
 </script>
-
 <!-- ===== CÀI ĐẶT · GIAO DIỆN TOÀN MÀN HÌNH ===== -->
 <div id="settingsOverlay" class="settings-page" aria-hidden="true">
   <header class="st-topbar">
@@ -1741,6 +1810,74 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
      không bị chặn bởi header token trong lúc chưa cấu hình xong. */
   window.TD_CONVEX_AUTH = false;
 
+  /* ===== BẢN 14 · OTP SERVER: CÓ LINK RENDER KHÔNG CẦN SỬA FILE ========
+     Thứ tự ưu tiên (cao -> thấp):
+     1) Mở ĐÚNG 1 LẦN: https://tuidiemonline.xyz/?otp=https://xxx.onrender.com
+        -> web tự lưu link vĩnh viễn vào máy, những lần sau không cần ?otp nữa.
+     2) localStorage 'td_otp_url'  (hoặc gõ Console: tdOtpSet('https://...'))
+     3) TD_OTP_DEFAULT bên dưới   (để '' = chưa bật OTP).
+     Gõ tdOtpSet('') để tắt. Chỉ nhận http/https, bỏ qua giá trị lạ.
+     Chưa bật OTP: đăng ký / đăng nhập chạy ngay, KHÔNG còn khung
+     "Xác thực Gmail" và KHÔNG còn mã 6 số giả hiện trên màn hình.
+     server.cjs đã có CORS + trả JSON nên gọi từ GitHub Pages không bị chặn. */
+  window.TD_OTP_DEFAULT = window.TD_OTP_DEFAULT || '';   // otp-config.js có thể set sẵn (BẢN 22)
+  window.tdOtpSet = function (u) {
+    var v = String(u || '').trim().replace(/\/+$/, '');
+    if (v && !/^https?:\/\//i.test(v)) v = '';
+    try { v ? localStorage.setItem('td_otp_url', v) : localStorage.removeItem('td_otp_url'); } catch (e) {}
+    window.TD_OTP_URL = v;
+    return v;
+  };
+  (function () {
+    var u = '';
+    try {
+      var q = new URLSearchParams(location.search).get('otp');
+      if (q && /^https?:\/\//i.test(q)) {
+        u = q.trim().replace(/\/+$/, '');
+        localStorage.setItem('td_otp_url', u);
+      } else {
+        u = localStorage.getItem('td_otp_url') || '';
+        /* BẢN 22: link cũ hỏng KHÔNG được che khuất otp-config.js */
+        if (u && !/^https?:\/\//i.test(u)) u = '';
+      }
+    } catch (e) {}
+    var v = String(u || window.TD_OTP_DEFAULT || '').trim().replace(/\/+$/, '');
+    window.TD_OTP_URL = /^https?:\/\//i.test(v) ? v : '';
+  })();
+  window.TD_OTP_REQUIRED = false;   // true = bắt nhập OTP ở bước xác thực
+  window.tdOtpRemote = false;       // true = mã OTP nằm ở Gmail
+  window.tdOtpSkip = false;         // true = chưa bật OTP, bỏ qua bước mã
+  window.TD_OTP_LAST_MSG = '';
+  window.tdOtpRequest = async function (email) {
+    var base = String(window.TD_OTP_URL || '').replace(/\/+$/, '');
+    window.TD_OTP_LAST_MSG = '';
+    if (!base) { window.TD_OTP_LAST_MSG = 'chưa có link OTP server'; return false; }
+    try {
+      var r = await fetch(base + '/api/request-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: String(email || '').toLowerCase() })
+      });
+      var j = await r.json();
+      if (!(j && j.ok)) { window.TD_OTP_LAST_MSG = (j && j.msg) || ('server trả HTTP ' + r.status); return false; }
+      return true;
+    } catch (e) { window.TD_OTP_LAST_MSG = 'không kết nối được server (CORS / Render đang ngủ)'; return false; }
+  };
+  window.tdOtpVerify = async function (email, code) {
+    var base = String(window.TD_OTP_URL || '').replace(/\/+$/, '');
+    window.TD_OTP_LAST_MSG = '';
+    if (!base) { window.TD_OTP_LAST_MSG = 'chưa có link OTP server'; return false; }
+    try {
+      var r = await fetch(base + '/api/verify-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: String(email || '').toLowerCase(),
+                               otp: String(code || '').trim() })
+      });
+      var j = await r.json();
+      if (!(j && j.ok)) { window.TD_OTP_LAST_MSG = (j && j.msg) || 'mã không đúng'; return false; }
+      return true;
+    } catch (e) { window.TD_OTP_LAST_MSG = 'không kết nối được server'; return false; }
+  };
+
   /* Tên RPC cũ -> tên hàm Convex. Vẫn giữ nguyên p_uid / p_type / p_day / p_reward...
      nên toàn bộ giao diện & luồng bấm "Nhận" bên dưới không phải sửa dòng nào.
      Reward, ngày VN và điều kiện hoàn thành đều do convex/tasks.js chốt. */
@@ -1759,7 +1896,9 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     /* BẢN 12 · đăng nhập bằng Gmail HOẶC Tên đăng nhập */
     resolve_login:          { path: 'tasks:resolveLogin',        kind: 'query' },
     register_profile:       { path: 'tasks:registerProfile',     kind: 'mutation' },
-    my_profile:             { path: 'tasks:myProfile',           kind: 'query' }
+    my_profile:             { path: 'tasks:myProfile',           kind: 'query' },
+    /* BẢN 22 · kiểm tra trùng tên đăng nhập / biệt danh */
+    check_name:             { path: 'tasks:checkName',           kind: 'query' }
   };
 
   window.tdRestRpc = async function (name, args) {
@@ -6562,8 +6701,8 @@ body.week-ticket-open{ overflow:hidden !important; }
     <!-- Đổi mật khẩu: chỉ hiện với tài khoản đăng ký thủ công (Google vào thẳng -> ẩn) -->
     <div class="pe-row" id="pe-change-password" onclick="openChangePasswordModal()" role="button" tabindex="0"
          style="display:none; cursor:pointer;">
-      <span class="pe-label" style="color:#ff8c00; font-weight:700;">Đổi mật khẩu</span>
-      <span style="margin-left:auto; font-size:13px; font-weight:700; color:#ff8c00;">Đổi &#8250;</span>
+      <span class="pe-label" style="color:#ffffff; font-weight:700;">Đổi mật khẩu</span>
+      <span style="margin-left:auto; font-size:13px; font-weight:700; color:#ffffff;">Đổi &#8250;</span>
     </div>
 
 
@@ -6611,7 +6750,7 @@ body.week-ticket-open{ overflow:hidden !important; }
 .st-update-btn:active{ transform:scale(.985); }
 .st-account{ position:relative; }
 .st-account-badge,.st-mail,.st-foot{ display:none !important; }
-.st-row-value.st-mail-value{ max-width:62%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.st-row-value.st-mail-value{ max-width:66%; overflow:visible; text-overflow:clip; white-space:normal; word-break:break-all; line-height:1.35; }
 #stUserId{ font-size:11px !important; letter-spacing:0 !important;
   font-family:'Courier New',monospace !important;
   white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
@@ -9178,7 +9317,7 @@ html.td-booting #loginScreen, html.td-booting #registerScreen{ visibility:hidden
   justify-content:center !important; gap:10px !important; }
 .td-auth-google-btn img{ width:18px !important; height:18px !important; }
 /* Dòng Đổi mật khẩu trong phần TÀI KHOẢN */
-#btn-change-password .st-row-label{ color:#ffb45c !important; font-weight:700 !important; }
+#btn-change-password .st-row-label{ color:#ffffff !important; font-weight:700 !important; }
 /* Game tử thần: khung game nằm đúng tab chơi, không lọt xuống dưới Thống kê */
 body.in-game #tab-survival{ display:block !important; position:relative !important; z-index:5 !important; }
 body.in-game #tab-survival > .card:first-child{ margin-top:55px !important; }
@@ -9310,13 +9449,15 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
 
   /* Tên đăng nhập -> gmail (Firebase chỉ đăng nhập bằng email).
      Tra local trước, rồi tới Firestore collection usernames. */
-  /* ================= BẢN 12 · XÁC THỰC GMAIL BẮT BUỘC =================
-     Lỗi cũ: tdDoLogin signOut nhưng QUÊN xoá td_session -> F5 là head script
-     lại add class td-signed -> vào web bình thường dù chưa bấm link.
-     Giữ NGUYÊN phiên Firebase (để user.reload() kiểm tra được), chỉ chặn UI
-     + xoá td_session + cờ tdVerifyBlocking chặn luôn onAuthStateChanged.   */
-  try { window.TD_REQUIRE_VERIFY = localStorage.getItem('td_skip_verify') !== '1'; }
-  catch (e) { window.TD_REQUIRE_VERIFY = true; }
+  /* ============ BẢN 13 · BỎ HẲN KHUNG "XÁC THỰC GMAIL" ============
+     Xác thực link Firebase (sendEmailVerification / emailVerified) đã bị gỡ.
+     Giờ dùng OTP server (server.cjs) qua TD_OTP_URL ở đầu file.
+     Cờ = false cố định: overlay tdVerifyOverlay KHÔNG BAO GIỜ hiện nữa,
+     kể cả khi máy còn sót key td_skip_verify của bản 12.                 */
+  window.TD_REQUIRE_VERIFY = false;
+  window.tdVerifyBlocking = false;
+  try { localStorage.removeItem('td_skip_verify'); } catch (e) {}
+  try { var _oldOv = document.getElementById('tdVerifyOverlay'); if (_oldOv) _oldOv.remove(); } catch (e) {}
 
   function tdEsc(x) {
     return String(x == null ? '' : x).replace(/[&<>"']/g, function (ch) {
@@ -9329,42 +9470,22 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
     var a = p[0];
     return (a.length <= 2 ? a.charAt(0) + '***' : a.slice(0, 2) + '***') + '@' + p[1];
   }
+  /* BẢN 13 · ĐÃ XOÁ HẲN KHUNG "XÁC THỰC GMAIL" (overlay + CSS + 3 nút).
+     Giữ 4 hàm tương thích để các chỗ gọi cũ không văng lỗi.
+     Xác thực giờ là mã OTP 6 số từ server.cjs, không còn link Firebase. */
   function tdVerifyClose() {
     var o = document.getElementById('tdVerifyOverlay'); if (o) o.remove();
+    var c = document.getElementById('tdVerifyCss'); if (c) c.remove();
   }
   window.tdVerifyClose = tdVerifyClose;
-
-  window.tdVerifyCheck = async function () {
-    var a = window.fbAuth;
-    if (!a || !a.currentUser) { window.tdToast('Đăng nhập lại rồi kiểm tra nhé'); return; }
-    try { await a.currentUser.reload(); } catch (e) {}
-    var u = a.currentUser;
-    if (u && u.emailVerified) {
-      window.tdVerifyBlocking = false;
-      try { localStorage.setItem('td_session', '1'); } catch (e) {}
-      tdVerifyClose();
-      window.tdToast('✅ Gmail đã xác thực · đang vào web...');
-      setTimeout(function () { location.reload(); }, 700);
-    } else {
-      window.tdToast('Link xác nhận chưa được bấm. Kiểm tra cả Thư rác / Spam nhé');
-    }
+  window.tdVerifyCheck = function () {
+    window.tdVerifyBlocking = false;
+    try { localStorage.setItem('td_session', '1'); } catch (e) {}
+    tdVerifyClose(); location.reload();
   };
-
-  window.tdVerifyResend = async function () {
-    var a = window.fbAuth;
-    if (!a || !a.currentUser || !window.fbSendEmailVerification) {
-      window.tdToast('Đăng nhập lại rồi gửi lại nhé'); return;
-    }
-    try {
-      await window.fbSendEmailVerification(a.currentUser);
-      window.tdToast('📧 Đã gửi lại · kiểm tra Hộp thư đến + Thư rác');
-    } catch (e) {
-      window.tdToast((e && e.code === 'auth/too-many-requests')
-        ? 'Gửi quá nhanh, đợi vài phút rồi bấm lại nhé'
-        : 'Chưa gửi được, thử lại sau ít phút nhé');
-    }
+  window.tdVerifyResend = function () {
+    window.tdToast('Đã bỏ xác thực link Firebase. Dùng mã OTP ở mục Quên mật khẩu nhé');
   };
-
   window.tdVerifySignOut = async function () {
     try { if (window.fbSignOut && window.fbAuth) await window.fbSignOut(window.fbAuth); } catch (e) {}
     try {
@@ -9373,53 +9494,9 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
       localStorage.removeItem('userId');
     } catch (e) {}
     window.tdVerifyBlocking = false;
-    tdVerifyClose();
-    location.reload();
+    tdVerifyClose(); location.reload();
   };
-
-  function tdShowVerify(u, email) {
-    tdVerifyClose();
-    var st = document.createElement('style');
-    st.id = 'tdVerifyCss';
-    st.textContent =
-      '#tdVerifyOverlay{position:fixed;inset:0;z-index:2147483647;background:rgba(2,8,18,.95);' +
-      'display:flex;align-items:center;justify-content:center;padding:20px;font-family:Poppins,sans-serif}' +
-      '.td-vf-box{width:100%;max-width:380px;background:linear-gradient(160deg,#123049,#0b1727);' +
-      'border:1px solid #2b3b55;border-radius:22px;padding:26px 20px 22px;color:#e8eef8;' +
-      'text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.7)}' +
-      '.td-vf-ico{font-size:38px;margin-bottom:8px}' +
-      '.td-vf-box h3{font-size:18px;color:#2dd4bf;font-weight:800;margin-bottom:8px}' +
-      '.td-vf-box p{font-size:12.5px;line-height:1.65;color:#cbd5e1;margin-bottom:18px}' +
-      '.td-vf-box b{color:#fbbf24}' +
-      '.td-vf-btn{width:100%;padding:13px;border:0;border-radius:12px;cursor:pointer;margin-top:8px;' +
-      'font:800 13.5px Poppins,sans-serif;color:#04211e;background:linear-gradient(135deg,#5eead4,#0f766e)}' +
-      '.td-vf-btn.sec{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#3b2600}' +
-      '.td-vf-out{width:100%;background:none;border:0;color:#94a3b8;cursor:pointer;' +
-      'font:600 12px Poppins,sans-serif;padding:14px 0 0}';
-    if (!document.getElementById('tdVerifyCss')) document.head.appendChild(st);
-
-    var ov = document.createElement('div');
-    ov.id = 'tdVerifyOverlay';
-    ov.innerHTML =
-      '<div class="td-vf-box">' +
-      '<div class="td-vf-ico">📧</div><h3>Xác thực Gmail</h3>' +
-      '<p>Tài khoản <b>' + tdEsc(email) + '</b> đã đăng ký nhưng chưa xác nhận.<br>' +
-      'Mở link Firebase gửi trong hộp thư (nhớ kiểm tra cả <b>Thư rác / Spam</b>) rồi bấm nút bên dưới.</p>' +
-      '<button class="td-vf-btn sec" onclick="tdVerifyResend()">📧 Gửi lại email xác nhận</button>' +
-      '<button class="td-vf-btn" onclick="tdVerifyCheck()">✅ Đã bấm link · Kiểm tra lại</button>' +
-      '<button class="td-vf-out" onclick="tdVerifySignOut()">Đăng xuất · dùng tài khoản khác</button>' +
-      '</div>';
-    document.body.appendChild(ov);
-    window.tdVerifyBlocking = true;
-    try {
-      localStorage.removeItem('td_session');
-      localStorage.removeItem('firebaseUid');
-      localStorage.removeItem('userId');
-      document.body.classList.remove('app-ready');
-      document.documentElement.classList.remove('td-signed');
-      document.documentElement.removeAttribute('data-td-tab');
-    } catch (e) {}
-  }
+  function tdShowVerify() { tdVerifyClose(); window.tdVerifyBlocking = false; }
 
   /* Hồ sơ lấy từ Convex -> đè biệt danh cũ còn sót trong localStorage */
   window.tdHydrateProfile = async function (user) {
@@ -9491,15 +9568,10 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
         .then(function (cred) {
           var u = cred && cred.user;
           var isPw = !!(u && u.providerData && u.providerData.some(function (p) { return p.providerId === 'password'; }));
-          /* BẢN 12 · Chặn THẬT: giữ phiên Firebase (để reload kiểm tra),
-             xoá td_session + bật cờ chặn onAuthStateChanged + phủ overlay. */
-          if (window.TD_REQUIRE_VERIFY && isPw && u && !u.emailVerified) {
-            try { if (window.fbSendEmailVerification) window.fbSendEmailVerification(u); } catch (e) {}
-            var ls = document.getElementById('loginScreen');
-            if (ls) ls.style.setProperty('display', 'none', 'important');
-            tdShowVerify(u, email);
-            return;
-          }
+          /* BẢN 13 · Không còn chặn emailVerified, không gửi link Firebase.
+             Đăng nhập tay vào thẳng web; OTP (nếu bật) do server.cjs lo. */
+          window.tdVerifyBlocking = false;
+          try { tdVerifyClose(); } catch (e) {}
           try { window.tdHydrateProfile(u); } catch (e) {}
         })
         .catch(function (err) {
@@ -9569,12 +9641,11 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
       var user = cred.user;
       var uid = user.uid;                       // UID do Firebase Console cấp
       try { await window.fbUpdateProfile(user, { displayName: nick }); } catch (e) {}
-      /* Gửi link xác nhận vào Gmail thật. Gmail bịa -> không có link -> không vào web được. */
-      try { if (window.fbSendEmailVerification) await window.fbSendEmailVerification(user); } catch (e) {}
+      /* BẢN 13 · Bỏ gửi link xác nhận Firebase. OTP (nếu bật) gọi tdOtpRequest. */
       var info = {
         uid: uid, tenDangNhap: name, bietDanh: nick,
         email: mail, dienThoai: phone || 'Chưa cập nhật',
-        loginMethod: 'password', emailVerified: !!user.emailVerified, createdAt: new Date().toISOString(),
+        loginMethod: 'password', emailVerified: true, createdAt: new Date().toISOString(),
         points: 0, diamonds: 0, history: [], diamondHistory: [],
         totalAdsWatched: 0, todayPoints: 0, diamondEarnedToday: 0,
         survivalHistory: [], lastPlayDate: new Date().toISOString().slice(0, 10)
@@ -9623,7 +9694,7 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
       var lp = document.getElementById('tdLoginPass'); if (lp) lp.value = '';
       var cb = document.getElementById('agreePolicy');
       if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
-      window.tdToast('Đăng ký thành công! Mở Gmail bấm link xác nhận, rồi đăng nhập nhé');
+      window.tdToast('Đăng ký thành công! Bấm đăng nhập để vào web ngay nhé');
       setTimeout(function () { window.tdRegJustDone = false; }, 4000);
     } catch (err) {
       window.tdRegJustDone = false;
@@ -11091,6 +11162,186 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     try { window.t8CloseRedeemTab(); } catch (x) {}
     try { window.t8CloseBanList(); } catch (x) {}
   });
+})();
+</script>
+
+<!-- ==================================================================
+     BẢN 22 · TỔNG HỢP MỌI YÊU CẦU
+     1) Form đăng ký: xoá chữ "(bắt buộc)", chỉ giữ "(không bắt buộc)".
+     2) Ô Gửi mã OTP + ô nhập 6 số + nút Xác thực + TÍCH XANH ngay dưới Gmail.
+     3) Mật khẩu mạnh: >=8 ký tự, chữ HOA + thường + số + ký tự đặc biệt.
+     4) Tên đăng nhập != Biệt danh; cả hai phải DUY NHẤT (Convex checkName).
+     5) "Đổi mật khẩu" chữ trắng; Gmail trong Cài đặt không bị cụt chữ.
+     6) Quên mật khẩu ngoài màn đăng nhập: OTP đầy đủ (đã thay ở khối trên).
+     ================================================================== -->
+<style id="td-ban22-css">
+.td-reg-otp{ margin:2px 0 4px !important; padding:12px !important; border-radius:14px !important;
+  background:#111c2e !important; border:1px solid #2b3b55 !important; }
+.td-otp-row{ display:flex !important; align-items:center !important; gap:10px !important; }
+.td-otp-send{ flex:1 !important; padding:11px !important; border:0 !important; border-radius:11px !important;
+  background:linear-gradient(135deg,#5eead4,#0f766e) !important; color:#04211e !important;
+  font-family:'Poppins',sans-serif !important; font-size:13px !important; font-weight:800 !important; cursor:pointer !important; }
+.td-otp-send:disabled{ opacity:.55 !important; cursor:not-allowed !important; }
+.td-otp-timer{ font-size:11.5px !important; color:#94a3b8 !important; min-width:34px !important; text-align:right !important; }
+.td-otp-verify{ margin-top:10px !important; }
+.td-auth-field.td-otp-field{ margin-bottom:8px !important; }
+.td-otp-field input{ letter-spacing:4px !important; font-weight:800 !important; font-size:16px !important; }
+.td-otp-tick{ font-size:20px !important; flex-shrink:0 !important; animation:tdTickPop .35s ease !important; }
+@keyframes tdTickPop{ from{ transform:scale(.3); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.td-otp-ok{ width:100% !important; padding:12px !important; border:0 !important; border-radius:11px !important;
+  background:#2dd4bf !important; color:#04211e !important; font-family:'Poppins',sans-serif !important;
+  font-size:13.5px !important; font-weight:800 !important; cursor:pointer !important; }
+.td-otp-ok:disabled{ opacity:.6 !important; cursor:not-allowed !important; }
+.td-otp-again{ width:100% !important; margin-top:6px !important; background:none !important; border:0 !important;
+  color:#94a3b8 !important; font-family:'Poppins',sans-serif !important; font-size:12px !important; cursor:pointer !important; }
+.td-otp-hint{ margin-top:8px !important; font-size:11px !important; line-height:1.5 !important; color:#94a3b8 !important; }
+.td-otp-hint.warn{ color:#fbbf24 !important; }
+.td-otp-hint.ok{ color:#5eead4 !important; }
+.td-otp-admin{ display:flex !important; gap:8px !important; margin-top:10px !important; }
+.td-otp-admin input{ flex:1 !important; min-width:0 !important; padding:10px !important; border-radius:10px !important;
+  border:1px solid #334155 !important; background:#0b1727 !important; color:#fff !important;
+  font-size:12px !important; font-family:'Poppins',sans-serif !important; outline:none !important; }
+.td-otp-admin button{ padding:0 14px !important; border:0 !important; border-radius:10px !important;
+  background:#2dd4bf !important; color:#04211e !important; font-weight:800 !important; cursor:pointer !important;
+  font-family:'Poppins',sans-serif !important; font-size:12px !important; }
+/* Gmail trong Cài đặt: hiện đủ, xuống dòng thay vì cụt "support.tuidiemonl..." */
+.st-row-value.st-mail-value{ max-width:66% !important; overflow:visible !important;
+  text-overflow:clip !important; white-space:normal !important; word-break:break-all !important;
+  text-align:right !important; line-height:1.35 !important; }
+/* Chữ "Đổi mật khẩu" = TRẮNG (cả Cài đặt lẫn trang cá nhân) */
+#btn-change-password .st-row-label{ color:#ffffff !important; font-weight:700 !important; }
+#pe-change-password .pe-label{ color:#ffffff !important; }
+</style>
+<script>
+(function () {
+  'use strict';
+  var STRONG = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
+  var STRONG_MSG = 'Mật khẩu quá yếu! Cần ít nhất 8 ký tự, gồm chữ HOA, chữ thường, số và ký tự đặc biệt (vd: Quan@2026x)';
+  var st = { ok: false, mail: '', timer: null };
+  function $(id) { return document.getElementById(id); }
+  function toast(t) { if (window.tdToast) window.tdToast(t); else alert(t); }
+  function hint(t, cls) {
+    var e = $('tdRegOtpHint'); if (!e) return;
+    e.textContent = t; e.className = 'td-otp-hint' + (cls ? ' ' + cls : '');
+  }
+  function showAdmin(show) { var e = $('tdRegOtpAdmin'); if (e) e.style.display = show ? 'flex' : 'none'; }
+  function serverReady() { return !!window.TD_OTP_URL; }
+  function resetOtp() {
+    st.ok = false; st.mail = '';
+    var tick = $('tdRegOtpTick'); if (tick) tick.style.display = 'none';
+    var box = $('tdRegOtpVerify'); if (box) box.style.display = 'none';
+    var ci = $('tdRegOtpCode'); if (ci) { ci.value = ''; ci.disabled = false; }
+    var ok = $('tdRegOtpOk'); if (ok) { ok.disabled = false; ok.textContent = '✅ Xác thực'; }
+    var btn = $('tdRegOtpSend'); if (btn) { btn.disabled = false; btn.textContent = '📧 Gửi mã OTP'; }
+    var tm = $('tdRegOtpTimer'); if (tm) tm.textContent = '';
+    if (st.timer) { clearInterval(st.timer); st.timer = null; }
+  }
+  window.tdRegOtpReset = resetOtp;
+  function countdown(sec) {
+    var btn = $('tdRegOtpSend'), tm = $('tdRegOtpTimer');
+    if (st.timer) clearInterval(st.timer);
+    var left = sec;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Gửi lại sau ' + left + 's'; }
+    st.timer = setInterval(function () {
+      left--;
+      if (tm) tm.textContent = left > 0 ? left + 's' : '';
+      if (btn) btn.textContent = left > 0 ? '⏳ Gửi lại sau ' + left + 's' : '📧 Gửi mã OTP';
+      if (left <= 0) { clearInterval(st.timer); st.timer = null; if (btn) btn.disabled = false; }
+    }, 1000);
+  }
+  window.tdRegOtpSend = async function () {
+    var m = $('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) { toast('Nhập đúng Gmail ở ô trên trước nhé'); return; }
+    if (!serverReady()) {
+      showAdmin(true);
+      hint('⚠ Chưa có link OTP server. Dán link Render vào ô bên dưới (1 lần) hoặc điền otp-config.js rồi push lại.', 'warn');
+      return;
+    }
+    resetOtp();
+    var btn = $('tdRegOtpSend'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang gửi...'; }
+    hint('Đang gửi mã 6 số tới ' + m + '...');
+    var sent = await window.tdOtpRequest(m);
+    if (!sent) {
+      if (btn) { btn.disabled = false; btn.textContent = '📧 Gửi mã OTP'; }
+      hint('Chưa gửi được OTP: ' + (window.TD_OTP_LAST_MSG || 'kiểm tra link server / GMAIL_USER / GMAIL_PASS'), 'warn');
+      return;
+    }
+    st.mail = m;
+    var box = $('tdRegOtpVerify'); if (box) box.style.display = 'block';
+    hint('✅ Đã gửi mã tới Gmail (cả Thư rác). Nhập 6 số rồi bấm "Xác thực" nhé', 'ok');
+    countdown(60);
+    var ci = $('tdRegOtpCode'); if (ci) ci.focus();
+  };
+  window.tdRegOtpVerify = async function () {
+    if (st.ok) return;
+    var ci = $('tdRegOtpCode'), v = ci ? ci.value.trim() : '';
+    if (!/^\d{6}$/.test(v)) { hint('Nhập đúng 6 chữ số trong Gmail nhé', 'warn'); return; }
+    if (!serverReady()) { showAdmin(true); return; }
+    var ok = $('tdRegOtpOk'); if (ok) { ok.disabled = true; ok.textContent = '⏳ Đang kiểm tra...'; }
+    hint('Hệ thống đang kiểm tra mã...');
+    var good = await window.tdOtpVerify(st.mail || ($('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : ''), v);
+    if (!good) {
+      if (ok) { ok.disabled = false; ok.textContent = '✅ Xác thực'; }
+      hint('Mã OTP không đúng hoặc đã hết hạn (5 phút). ' + (window.TD_OTP_LAST_MSG || ''), 'warn');
+      return;
+    }
+    st.ok = true;
+    var tick = $('tdRegOtpTick'); if (tick) tick.style.display = 'inline-block';
+    if (ci) ci.disabled = true;
+    if (ok) { ok.disabled = true; ok.textContent = '✅ Đã xác thực'; }
+    hint('✅ Đã xác thực Gmail · giờ bấm "Tiếp tục" để tạo tài khoản nhé', 'ok');
+  };
+
+  /* ---- Bọc lại nút "Tiếp tục": thêm mọi validate TRƯỚC khi gọi code gốc ---- */
+  var origRegister = window.tdRegisterContinue;
+  window.tdRegisterContinue = async function () {
+    var gv = function (id) { var e = $(id); return e ? e.value.trim() : ''; };
+    var name = gv('tdRegUser'), mail = gv('tdRegMail').toLowerCase(), nick = gv('tdRegNick');
+    var pass = $('tdRegPass') ? $('tdRegPass').value : '', pass2 = $('tdRegPass2') ? $('tdRegPass2').value : '';
+
+    if (!name || !mail || !nick || !pass || !pass2) { toast('Nhập đủ các ô rồi bấm Tiếp tục nhé'); return; }
+    if (!STRONG.test(pass)) { toast(STRONG_MSG); return; }
+    if (pass !== pass2) { toast('Mật khẩu nhập lại không khớp!'); return; }
+    if (name.toLowerCase() === nick.toLowerCase()) {
+      toast('Tên đăng nhập và Biệt danh không được giống nhau, đặt khác nhau nhé'); return;
+    }
+
+    /* Kiểm tra trùng tên / biệt danh trên SERVER (chống F12 sửa local) */
+    try {
+      if (window.tdRestRpc) {
+        var r = await window.tdRestRpc('check_name', { p_search: name.toLowerCase(), p_nick: nick });
+        if (r && r.usernameTaken) { toast('Tên đăng nhập này đã được sử dụng rồi, chọn tên khác nhé'); return; }
+        if (r && r.nicknameTaken) { toast('Biệt danh này đã được sử dụng rồi, chọn biệt danh khác nhé'); return; }
+      }
+    } catch (e) { /* Convex chưa deploy checkName -> code gốc vẫn chặn trùng username */ }
+
+    /* OTP: có link server -> BẮT BUỘC xác thực mới cho tạo tài khoản */
+    if (serverReady()) {
+      if (!st.ok || st.mail !== mail) {
+        toast('Bấm "Gửi mã OTP" → nhập mã → bấm "Xác thực" (hiện tích xanh ✅) rồi mới đăng ký được nhé');
+        return;
+      }
+    } else {
+      showAdmin(true);
+      hint('⚠ OTP server chưa cấu hình → tạm cho đăng ký. Điền 1 dòng vào otp-config.js rồi push là mọi user bắt buộc OTP.', 'warn');
+    }
+    return origRegister ? origRegister.apply(this, arguments) : undefined;
+  };
+
+  /* Đổi Gmail / mở lại form -> reset trạng thái OTP */
+  document.addEventListener('input', function (e) {
+    if (e && e.target && e.target.id === 'tdRegMail') resetOtp();
+  });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!serverReady()) {
+      showAdmin(true);
+      hint('⚠ OTP server chưa cấu hình. Dán link Render 1 lần hoặc điền otp-config.js rồi push lại.', 'warn');
+    }
+  });
+  if (document.readyState !== 'loading' && !serverReady()) {
+    showAdmin(true);
+    hint('⚠ OTP server chưa cấu hình. Dán link Render 1 lần hoặc điền otp-config.js rồi push lại.', 'warn');
+  }
 })();
 </script>
 
