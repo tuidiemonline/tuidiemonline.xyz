@@ -830,7 +830,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       <div class="td-otp-hint" id="tdRegOtpHint" style="display:none!important" aria-hidden="true"></div>
     </div>
     <div class="td-auth-field"><i class="fas fa-tag"></i><input id="tdRegNick" type="text" placeholder="Biệt danh" autocomplete="off" required></div>
-    <div class="td-auth-field"><i class="fas fa-phone"></i><input id="tdRegPhone" type="tel" placeholder="Điện thoại (không bắt buộc)" autocomplete="off"></div>
+    <div class="td-auth-field td-phone-wrap"><i class="fas fa-phone"></i><span class="td-phone-prefix" id="tdRegPhonePrefix">+84</span><input id="tdRegPhone" type="tel" inputmode="numeric" maxlength="9" placeholder="Nhập số, bỏ 0 đầu" autocomplete="off"></div>
     <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass" type="password" placeholder="Mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye" onclick="tdToggleRegPass()"></i></div>
     <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass2" type="password" placeholder="Nhập lại mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye td-auth-eye-2" onclick="tdToggleRegPass2()"></i></div>
     <div class="td-auth-legal">Bằng cách đăng nhập, bạn đồng ý với<br>
@@ -2100,6 +2100,59 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
      window.tdWSet(o); window.tdWPaint();
    };
 
+   /* ================================================================
+      BAN 35 · LICH SU HOM NAY — 1 ACC 1 SO, LUU CA CHE DO MAY
+      ----------------------------------------------------------------
+      Server online: todayStats tra lich sử tu Convex.
+      Server chua song: popup doc them kho nay (tdacc:<uid>:hist:<ngay>).
+      Moi lan DIEM DANH / NHAN NHIEM VU / QUAY trung coin deu ghi vao day
+      thong qua histAdd(). Sang 00:00 gio VN tu doi key -> lich su moi.
+      5.000 acc van khong bao gio ghi lich su cua acc nay sang acc kia.
+      ================================================================ */
+   window.tdHKey = function () {
+     return 'tdacc:' + (window.tdWUid() || 'anon') + ':hist:' + window.tdWDay();
+   };
+   window.tdHistGet = function () {
+     try {
+       var a = JSON.parse(localStorage.getItem(window.tdHKey()) || '[]');
+       return Array.isArray(a) ? a : [];
+     } catch (e) { return []; }
+   };
+   window.tdHistAdd = function (label, pts) {
+     var n = Math.max(0, parseInt(pts, 10) || 0);
+     if (!n) return;
+     var a = window.tdHistGet();
+     var t = new Date();
+     var time = String(t.getHours()).padStart(2, '0') + ':' +
+                String(t.getMinutes()).padStart(2, '0');
+     var k = String(label || 'Nhan thuong') + '|' + n + '|' + time;
+     /* Cung 1 hanh dong trong cung 1 phut chi ghi 1 dong (tranh double path) */
+     var first = a[0] || {};
+     if (String(first.label || '') + '|' + (Number(first.points) || 0) + '|' +
+         String(first.time || '') === k) return;
+     a.unshift({ label: String(label || 'Nhan thuong'), points: n,
+                 time: time, ts: Date.now() });
+     a = a.slice(0, 30);
+     try { localStorage.setItem(window.tdHKey(), JSON.stringify(a)); } catch (e) {}
+     try { window.dispatchEvent(new CustomEvent('td:hist')); } catch (e) {}
+   };
+   /* Bang thuong KHOP VOI RULES trong convex/tasks.js. Khi front gui
+      p_reward = 0 (de server tu chot), che do MAY phai lay dung so:
+      checkin = 10, khong duoc mac dinh 5 -> het loi "+10 ma chi +5". */
+   window.TD_TASK_REWARD = {
+     checkin: 10, login: 5, spin: 5, play: 5, ref: 20, taxi: 10,
+     worms: 10, helmet: 20, dunk: 10, peak: 20, king: 50, block: 100, ads5: 200
+   };
+   window.TD_TASK_NAME = {
+     checkin: 'Diem danh hang ngay', login: 'Dang nhap moi ngay',
+     spin: 'Quay vong may man', play: 'Choi game bat ki',
+     ref: 'Chia se Tui Diem Online', taxi: 'Choi Stickman Warriors',
+     worms: 'Choi Worms Zone', helmet: 'Choi Wear the Helmet',
+     dunk: 'Choi Bouncy Dunk', peak: 'Choi 5 game khac nhau',
+     king: 'Choi 15 game khac nhau', block: 'Choi 30 game khac nhau',
+     ads5: 'Choi 50 game khac nhau'
+   };
+
   window.TD_RPC_MAP = {
     coin_state:             { path: 'tasks:coinState',           kind: 'query' },
     coin_task_claims_today: { path: 'tasks:coinTaskClaimsToday', kind: 'query' },
@@ -2227,7 +2280,9 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         out = { ok: true, tasks: Object.keys(S.claimed) };
         break;
       case 'today_stats':
-        out = { ok: true, today: S.today, coins: S.coins, diamonds: S.diamonds, history: [] };
+        /* BAN 35: che do MAY cung phai co lich su, khong de popup rong */
+        out = { ok: true, today: S.today, coins: S.coins, diamonds: S.diamonds,
+                history: (window.tdHistGet ? window.tdHistGet() : []) };
         break;
       case 'ticket_state':
         out = { ok: true, tickets: S.tickets,
@@ -2254,8 +2309,14 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       case 'claim_task': {
         var tid = String(a.p_task || a.p_type || 'task');
         if (S.claimed[tid]) out = { ok: false, msg: 'Da nhan thuong nay hom nay roi' };
-        else { var rw = tdNum(a.p_reward, 5); S.claimed[tid] = 1; S.coins += rw; S.today += rw;
-               out = { ok: true, reward: rw, coins: S.coins, today: S.today }; }
+        else {
+          /* BAN 35: p_reward = 0 (server tu chot) -> lay DUNG bang thuong.
+             Truoc day mac dinh 5 nen diem danh +10 ma "Coin hom nay" chi +5. */
+          var rw = Math.max(0, Math.floor(tdNum(a.p_reward, 0)));
+          if (!rw) rw = (window.TD_TASK_REWARD && window.TD_TASK_REWARD[tid]) || 5;
+          S.claimed[tid] = 1; S.coins += rw; S.today += rw;
+          out = { ok: true, reward: rw, coins: S.coins, today: S.today };
+        }
         break;
       }
       case 'spin_wheel': {
@@ -2496,6 +2557,15 @@ function histAdd(type, pts, label) {
   d.log = d.log.slice(0, 30);
   if (type === 'checkin') { d.checkinCount += 1; d.checkinPoints += pts; }
   histSave(d);
+  /* BAN 35: day vao kho RIENG THEO ACC. Popup "Lich su hom nay" doc kho nay
+     ngay ca khi Convex chua song -> khong con "Chua co luot nao hom nay". */
+  try {
+    var pretty = type === 'checkin' ? 'Điểm danh hàng ngày'
+               : type === 'wheel' ? 'Vòng quay may mắn'
+               : ('Làm nhiệm vụ ' + String(label || '')
+                    .replace(/^làm nhiệm vụ\s*/i, '').trim());
+    if (window.tdHistAdd) window.tdHistAdd(pretty.trim(), pts);
+  } catch (e) {}
 }
 // Gọi từ postback Offerwall sau này: histAddNhiemVu(soCoin, 'tên nhiệm vụ')
 window.histAddNhiemVu = function(pts, ten) {
@@ -2999,9 +3069,11 @@ function renderSettings() {
   setText('stNickname', nick);
   setText('stUsername', info.tenDangNhap || profile.username || 'Chưa cập nhật');
   setText('stGmail', mail);
-  setText('stPhone', (profile.phone && profile.phone !== 'Chưa cập nhật') ? profile.phone
+  var _ph = (profile.phone && profile.phone !== 'Chưa cập nhật') ? profile.phone
     : ((info.dienThoai && info.dienThoai !== 'Chưa cập nhật') ? info.dienThoai
-    : ((u && u.phoneNumber) || 'Chưa cập nhật')));
+    : ((u && u.phoneNumber) || ''));
+  setText('stPhone', _ph ? (window.tdPhoneFull ? window.tdPhoneFull(_ph) : _ph)
+                         : 'Chưa cập nhật');
   setText('stGender', profile.gender || 'Chưa cập nhật');
   setText('stBirth', profile.birth || 'Chưa cập nhật');
   const toggle = document.getElementById('stNotifyToggle');
@@ -7154,8 +7226,9 @@ body.week-ticket-open{ overflow:hidden !important; }
     </div>
     <div class="pe-row">
       <label class="pe-label" for="pePhone">Số điện thoại</label>
-      <input class="pe-input" id="pePhone" type="tel" inputmode="numeric" maxlength="15"
-             placeholder="Chưa cập nhật" autocomplete="tel">
+      <span class="pe-phone-prefix">+84</span>
+      <input class="pe-input" id="pePhone" type="tel" inputmode="numeric" maxlength="9"
+             placeholder="Chưa cập nhật" autocomplete="off">
     </div>
 
     <!-- Đổi mật khẩu: chỉ hiện với tài khoản đăng ký thủ công (Google vào thẳng -> ẩn) -->
@@ -7414,7 +7487,11 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     document.getElementById('peUsername').value = info.tenDangNhap || p.username || 'Chưa cập nhật';
     document.getElementById('peUid').value = peUid() || 'Đang tải...';
     document.getElementById('peMail').value = (u && u.email) || 'Chưa cập nhật';
-    document.getElementById('pePhone').value = p.phone || (u && u.phoneNumber) || '';
+    var phEl = document.getElementById('pePhone');
+    if (phEl) {
+      var pv = String(p.phone || (u && u.phoneNumber) || '').replace(/^\+?84/, '');
+      phEl.value = window.tdPhoneDigits ? window.tdPhoneDigits(pv) : pv;
+    }
     document.getElementById('peBirth').value = p.birth || '';
     var g = p.gender || 'Nam';
     Array.prototype.forEach.call(document.querySelectorAll('#peGender .pe-chip'), function (b) {
@@ -7478,8 +7555,9 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
   window.peSave = function () {
     var last = document.getElementById('peLast').value.trim();
     var birth = document.getElementById('peBirth').value.trim();
-    var phone = document.getElementById('pePhone').value.trim();
-    if (phone === '+84' || phone === '+') phone = '';   /* BAN 34: chua nhap so */
+    var phone = window.tdPhoneFull
+      ? window.tdPhoneFull(document.getElementById('pePhone').value)
+      : document.getElementById('pePhone').value.trim();   /* BAN 35: luu +84... */
     var genderBtn = document.querySelector('#peGender .pe-chip.active');
     var gender = genderBtn ? genderBtn.getAttribute('data-g') : 'Nam';
     var nick = last.trim();
@@ -7487,7 +7565,7 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     if (birth && !/^\d{2}\/\d{2}\/\d{4}$/.test(birth)) {
       alert('Ngày sinh phải đúng định dạng DD/MM/YYYY.'); return;
     }
-    if (phone && !/^[0-9+\s\-()]{6,15}$/.test(phone)) {
+    if (phone && !/^\+84\d{8,9}$/.test(phone)) {
       alert('Số điện thoại không hợp lệ.'); return;
     }
     var p = window.peLoad();
@@ -10119,8 +10197,8 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
     var gv = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
     var name = gv('tdRegUser');
     var mail = gv('tdRegMail').toLowerCase(), nick = gv('tdRegNick');
-    var phone = gv('tdRegPhone');
-    if (phone === '+84' || phone === '+') phone = '';   /* BAN 34: chua nhap so */
+    var phone = window.tdPhoneFull ? window.tdPhoneFull(gv('tdRegPhone')) : gv('tdRegPhone');
+    /* BAN 35: +84 tu nhan tinh, input chi co so -> khong con +848 / +84+84 */
     var pass = document.getElementById('tdRegPass') ? document.getElementById('tdRegPass').value : '';
     var pass2 = gv('tdRegPass2');
     /* BẢN 10 · BẮT BUỘC hết trừ SĐT. Thiếu 1 ô -> KHÔNG đăng ký được. */
@@ -10473,11 +10551,25 @@ html, body{ overscroll-behavior-y:auto !important; }
 #profileOverlay .profile-wrap{ min-height:100dvh !important; padding-bottom:120px !important; }
 </style>
 <script>
-/* LỊCH SỬ & THỐNG KÊ: render từ dữ liệu SERVER, không đọc localStorage.
-   Sửa F12 / localStorage chỉ đổi được vài giây rồi bị ghi đè khi đồng bộ. */
+/* BAN 35 · LỊCH SỬ HÔM NAY = SERVER + KHO MAY (gộp, bỏ trùng).
+   Điểm danh / nhiệm vụ / vòng quay đều ghi qua histAdd() -> tdHistAdd().
+   Server sống: thêm cả lịch sử Convex. Server chưa sống: vẫn hiện đủ. */
 (function(){
+  function tdMerge(){
+    var out = [], seen = {};
+    var loc = (window.tdHistGet ? window.tdHistGet() : []) || [];
+    var srv = window.__serverHistory || [];
+    loc.concat(srv).forEach(function(e){
+      if (!e) return;
+      var k = String(e.label || '') + '|' + (Number(e.points) || 0) + '|' + String(e.time || '');
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push(e);
+    });
+    return out;
+  }
   function tdHtml(){
-    var h = window.__serverHistory || [];
+    var h = tdMerge();
     if (!h.length) return '<div class="hist-empty">Chưa có lượt nào hôm nay.</div>';
     return h.map(function(e){
       return '<div class="hist-log-row hist-log-card">' +
@@ -10490,13 +10582,24 @@ html, body{ overscroll-behavior-y:auto !important; }
              '</div>';
     }).join('');
   }
+  function repaint(){
+    var box = document.getElementById('histTodayLog');
+    var pop = document.getElementById('histPopup');
+    if (box && pop && pop.classList.contains('show')) box.innerHTML = tdHtml();
+  }
   window.openHistoryPopup = function(){
     var box = document.getElementById('histTodayLog');
     var pop = document.getElementById('histPopup');
     if (box) box.innerHTML = tdHtml();
     if (pop) pop.classList.add('show');
-    try { if (window.CoinBridge && window.CoinBridge.sync) window.CoinBridge.sync(); } catch (e) {}
+    /* Server vua song -> bo sung lich su Convex vao popup ngay */
+    try {
+      var pr = window.CoinBridge && window.CoinBridge.sync && window.CoinBridge.sync();
+      if (pr && typeof pr.then === 'function') pr.then(repaint).catch(function(){});
+    } catch (e) {}
   };
+  /* Vua bam Nhan o bat cu dau cung cap nhat popup ngay, khong can dong mo lai */
+  try { window.addEventListener('td:hist', repaint); } catch (e) {}
 })();
 </script>
 
@@ -11998,16 +12101,19 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   text-overflow:ellipsis !important; word-break:normal !important;
   max-width:74% !important; font-size:12px !important; letter-spacing:-.2px !important;
   text-align:right !important; line-height:1.2 !important; }
-/* 3. Prefix +84 trong o dien thoai */
-.pe-phone-wrap{ position:relative; flex:1; display:flex; align-items:center; justify-content:flex-end; min-width:0; }
-.pe-phone-wrap .pe-input{ padding-right:0 !important; }
-.td-auth-field.td-phone-wrap input{ padding-left:52px !important; }
-.td-phone-prefix{
-  position:absolute !important; left:16px !important; top:50% !important;
-  transform:translateY(-50%) !important; color:#ffffff !important;
-  font-size:15px !important; font-weight:700 !important; pointer-events:none !important;
-  z-index:2 !important; font-family:'Poppins',sans-serif !important;
+/* 3. BAN 35 · +84 la NHAN TINH, KHONG nam trong gia tri input.
+   Khong de len icon dien thoai, khong bi xoa, khong nhay so 8. */
+.pe-phone-prefix, .td-phone-prefix{
+  color:#ffffff !important; font-size:15px !important; font-weight:800 !important;
+  pointer-events:none !important; user-select:none !important;
+  white-space:nowrap !important; font-family:'Poppins',sans-serif !important;
 }
+.pe-phone-prefix{ flex:0 0 auto !important; margin-left:auto !important; }
+.td-auth-field .td-phone-prefix{
+  position:absolute !important; left:52px !important; top:50% !important;
+  transform:translateY(-50%) !important; z-index:2 !important;
+}
+.td-auth-field.td-phone-wrap input{ padding-left:104px !important; }
 </style>
 <script>
 (function () {
@@ -12029,25 +12135,45 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       el.value = out;
     });
   }
-  /* ---------- B. SO DIEN THOAI: +84 co dinh, user KHONG can go so 0 ---------- */
-  function normPhone(el) {
-    if (!el) return;
-    var d = String(el.value || '').replace(/\D/g, '');
-    if (d.indexOf('84') === 0) d = d.slice(2);      /* go nham +84 */
-    if (d.charAt(0) === '0') d = d.slice(1);        /* bo so 0 dau */
-    d = d.slice(0, 12);
-    el.value = '+84' + d;
+  /* ---------- B. BAN 35 · SO DIEN THOAI ----------
+     +84 la nhan TINH nam NGOAI input (canh chu "So dien thoai" / sau icon).
+     input CHI chua phan so (vd 912345678). Bam vao -> con tro o dau phan so
+     (tuc ngay sau +84), KHONG dung truoc dau +, KHONG the xoa +84,
+     KHONG con hien 2 lan +84 va KHONG nhay so 8 khi backspace. */
+  function tdPhoneDigits(v) {
+    var d = String(v == null ? '' : v).replace(/\D/g, '');
+    if (d.indexOf('84') === 0) d = d.slice(2);   /* lo dan ca +84... */
+    if (d.charAt(0) === '0') d = d.slice(1);     /* user khong can go so 0 */
+    return d.slice(0, 9);
   }
+  window.tdPhoneDigits = tdPhoneDigits;
+  window.tdPhoneFull = function (v) {
+    var d = tdPhoneDigits(String(v == null ? '' : v).replace(/^\+?84/, ''));
+    /* Chi luu so hop le (8-9 chu so). Dang go do / chi con "+848" -> bo trong. */
+    return d.length >= 8 ? '+84' + d : '';
+  };
   function bindPhone(el) {
-    if (!el || el.__td34) return;
-    el.__td34 = 1;
-    el.setAttribute('maxlength', '15');
+    if (!el || el.__td35) return;
+    el.__td35 = 1;
+    el.setAttribute('type', 'tel');
     el.setAttribute('inputmode', 'numeric');
-    if (!String(el.value || '').trim()) el.value = '+84';
-    else normPhone(el);
-    el.addEventListener('focus', function () { if (!String(el.value || '').trim()) el.value = '+84'; });
-    el.addEventListener('input', function () { normPhone(el); });
-    el.addEventListener('blur', function () { if (el.value === '+84') el.value = ''; });
+    el.setAttribute('maxlength', '9');
+    el.setAttribute('autocomplete', 'off');
+    el.value = tdPhoneDigits(el.value);   /* NEVER co +84 trong value */
+    el.addEventListener('input', function () {
+      var d = tdPhoneDigits(el.value);
+      if (el.value !== d) el.value = d;
+    });
+    el.addEventListener('focus', function () {
+      /* Con tro mac dinh nam o PHAN SO = ngay sau +84 */
+      try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {}
+    });
+    el.addEventListener('keydown', function (e) {
+      /* Chan go dau + / chu cai; Backspace / Delete / Tab van hoat dong binh thuong */
+      var k = e.key || '';
+      if ((k === '+' || (k.length === 1 && !/[0-9]/.test(k))) &&
+          !e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
+    });
   }
   function boot() {
     try { bindBirth(); } catch (e) {}
@@ -12055,16 +12181,8 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       bindPhone(document.getElementById('pePhone'));
       bindPhone(document.getElementById('tdRegPhone'));
     } catch (e) {}
-    /* Dang ky: dat prefix +84 nhin thay trong o (neu co icon dien thoai) */
-    try {
-      var reg = document.getElementById('tdRegPhone');
-      if (reg && reg.parentElement && !document.getElementById('tdRegPhonePrefix')) {
-        reg.parentElement.classList.add('td-phone-wrap');
-        var s = document.createElement('span');
-        s.id = 'tdRegPhonePrefix'; s.className = 'td-phone-prefix'; s.textContent = '+84';
-        reg.parentElement.insertBefore(s, reg);
-      }
-    } catch (e) {}
+    /* BAN 35: +84 da co san trong HTML (1 lan duy nhat), khong insert them
+       -> khong con 2 chu +84, khong con de len icon dien thoai. */
     /* Cap nhat 2 so sach ngay khung hinh dau tien */
     try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {}
     /* Dau tick dieu khoan: neu da luu thi luon giu (phong render lai) */

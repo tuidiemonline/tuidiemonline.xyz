@@ -611,10 +611,11 @@ export const claimTask = mutation({
     else if (rule.mode === "share") ready = !!st?.shareVerified;
     else ready = (st?.games || 0) >= (rule.games || 1);
     if (!ready) return { ok: false, msg: "Bạn chưa hoàn thành nhiệm vụ này!" };
-    await addCoins(ctx, uid, rule.reward, id);
+    const got = await addCoins(ctx, uid, rule.reward, id);
     if (PERSIST_TASKS[id] && st) await ctx.db.delete(st._id);   // reset DUY NHẤT ở đây
     const w = await getWallet(ctx, uid);
-    return { ok: true, coins: await displayCoins(ctx, uid, w), today: w.today, reward: rule.reward };
+    /* BAN 35: tra DUNG today SAU khi cong (truoc day doc w.today cu -> lech so) */
+    return { ok: true, coins: await displayCoins(ctx, uid, w), today: got.today, reward: rule.reward };
   },
 });
 

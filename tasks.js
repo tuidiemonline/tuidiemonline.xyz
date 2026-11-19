@@ -1,7 +1,13 @@
 /* ==================================================================
-   tasks.js · BAN 34 · BAN THAM CHIEU (khong deploy file nay)
-   Noi dung code GIONG HET convex/tasks.js. File deploy that la
-   convex/tasks.js -> chay `npx convex deploy`.
+   convex/tasks.js · BAN 34 · FILE DEPLOY THAT (`npx convex deploy`)
+   ------------------------------------------------------------------
+   - 2 so sach da TACH SAN O SERVER: coins = tong thu nhap (giu mai),
+     today = coin kiem hom nay (reset 00:00 VN). exchangeDiamonds CHI tru
+     `coins`, KHONG dong vao `today` (dung y user).
+   - Moi uid 1 document td_wallet rieng -> 5.000 acc khong trung nhau.
+   - OTP that do otp-server (Render + Brevo) sinh & gui, khong con devCode.
+   - 2 file tasks.js / convex_tasks.js cung thu muc la BAN THAM CHIEU,
+     noi dung code GIONG HET file nay (chi khac dong tieu de).
    ================================================================== */
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
@@ -605,10 +611,11 @@ export const claimTask = mutation({
     else if (rule.mode === "share") ready = !!st?.shareVerified;
     else ready = (st?.games || 0) >= (rule.games || 1);
     if (!ready) return { ok: false, msg: "Bạn chưa hoàn thành nhiệm vụ này!" };
-    await addCoins(ctx, uid, rule.reward, id);
+    const got = await addCoins(ctx, uid, rule.reward, id);
     if (PERSIST_TASKS[id] && st) await ctx.db.delete(st._id);   // reset DUY NHẤT ở đây
     const w = await getWallet(ctx, uid);
-    return { ok: true, coins: await displayCoins(ctx, uid, w), today: w.today, reward: rule.reward };
+    /* BAN 35: tra DUNG today SAU khi cong (truoc day doc w.today cu -> lech so) */
+    return { ok: true, coins: await displayCoins(ctx, uid, w), today: got.today, reward: rule.reward };
   },
 });
 
