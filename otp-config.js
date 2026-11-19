@@ -14,5 +14,8 @@ otp-config.js · CẤU HÌNH 2 LINK  (BẢN 29 · GỬI MAIL THẬT)
 
 Đổi link: sửa đúng 1 dòng rồi push repo web (GitHub Pages).
 ================================================================== */
+/* BAN 32: neu URL nay khac voi deployment ma `npx convex deploy` dang dung,
+   khong can sua file — mo web voi ?convex=https://xxxx.convex.cloud
+   hoac go trong Console: tdSetConvex('https://xxxx.convex.cloud')       */
 window.TD_CONVEX_URL  = 'https://tough-canary-511.convex.cloud';
 window.TD_OTP_DEFAULT = 'https://otp-server-xvsk.onrender.com';

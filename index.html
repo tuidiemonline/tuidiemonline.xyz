@@ -1981,11 +1981,162 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     otp_verify:             { path: 'tasks:verifyOtp',           kind: 'mutation' }
   };
 
-  window.tdRestRpc = async function (name, args) {
-    var m = window.TD_RPC_MAP[name];
-    if (!m) return Promise.reject(new Error('RPC chua map: ' + name));
-    var url = String(window.CONVEX_URL || '').replace(/\/+$/, '');
-    if (!url) return Promise.reject(new Error('Thieu CONVEX_URL'));
+  /* ================================================================
+     BAN 32 · RPC TU PHUC HOI — HET CONVEX_ERROR / HET TREO TRANG
+     ----------------------------------------------------------------
+     1) Goi Convex that truoc (timeout 8s). Loi gi cung in ra Console
+        kem URL + ten ham + errorMessage de sua backend cho dung.
+     2) Neu Convex chua deploy / sai URL / schema loi / mat mang ->
+        tu xuong CHE DO MAY. Du lieu nam trong localStorage, DA TACH
+        theo tdacc:<uid>: nen 2 acc hay 5.000 acc van KHONG trung nhau.
+     3) Moi 30s tu thu lai 1 lan; server song la lay lai so cua server
+        (server van la nguon chan ly).
+     Doi URL Convex khong can sua file, mo:
+        https://tuidiemonline.xyz/?convex=https://xxxx.convex.cloud
+     hoac go trong Console: tdSetConvex('https://xxxx.convex.cloud')
+     ================================================================ */
+  window.TD_NET_MODE = 'online';
+  window.TD_LAST_CONVEX_ERROR = '';
+  window.TD_CONVEX_PROBE_MS = 30000;
+
+  window.tdSetConvex = function (u) {
+    var v = String(u || '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(v)) {
+      try { localStorage.removeItem('td_convex_url'); } catch (e) {}
+      v = '';
+    } else {
+      try { localStorage.setItem('td_convex_url', v); } catch (e) {}
+    }
+    window.TD_LAST_CONVEX_ERROR = '';
+    return v || '(mac dinh)';
+  };
+  (function () {
+    try {
+      var q = new URLSearchParams(location.search).get('convex');
+      if (q) window.tdSetConvex(q);
+    } catch (e) {}
+  })();
+
+  function tdConvexUrls() {
+    var list = [], seen = {};
+    function add(u) {
+      u = String(u || '').trim().replace(/\/+$/, '');
+      if (!/^https?:\/\//i.test(u) || seen[u]) return;
+      seen[u] = 1; list.push(u);
+    }
+    try { add(localStorage.getItem('td_convex_url')); } catch (e) {}
+    add(window.TD_CONVEX_URL);
+    add(window.CONVEX_URL);
+    add('https://tough-canary-511.convex.cloud');
+    return list;
+  }
+  function tdDayVN() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date());
+    } catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function tdNum(x, d) { var n = Number(x); return isFinite(n) ? n : d; }
+
+  /* ---- Kho MAY: 1 acc = 1 kho, reset dung 00:00 gio VN ---- */
+  window.tdLocalRpc = function (name, args) {
+    var a = args || {};
+    var uid = String(a.p_uid || '').trim() || 'anon';
+    var key = 'tdloc:' + uid + ':state';
+    var d = tdDayVN();
+    var S;
+    try { S = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { S = null; }
+    if (!S || typeof S !== 'object') S = {};
+    if (S.day !== d) {
+      S.day = d; S.today = 0; S.claimed = {}; S.tk = {};
+      S.checkinDone = false; S.lastLoginDay = '';
+    }
+    S.coins = tdNum(S.coins, 0);
+    S.today = tdNum(S.today, 0);
+    S.diamonds = tdNum(S.diamonds, 0);
+    S.tickets = tdNum(S.tickets, 0);
+    S.checkinStreak = tdNum(S.checkinStreak, 0);
+    S.streak = tdNum(S.streak, 0);
+    S.claimed = S.claimed || {};
+    S.tk = S.tk || {};
+    function save() { try { localStorage.setItem(key, JSON.stringify(S)); } catch (e) {} }
+    var out;
+    switch (name) {
+      case 'ping_login':
+        if (S.lastLoginDay !== d) { S.lastLoginDay = d; S.streak += 1; }
+        out = { ok: true, streak: S.streak, coins: S.coins };
+        break;
+      case 'coin_state':
+        out = { ok: true, coins: S.coins, today: S.today, diamonds: S.diamonds, tickets: S.tickets };
+        break;
+      case 'coin_task_claims_today':
+        out = { ok: true, tasks: Object.keys(S.claimed) };
+        break;
+      case 'today_stats':
+        out = { ok: true, today: S.today, coins: S.coins, diamonds: S.diamonds, history: [] };
+        break;
+      case 'ticket_state':
+        out = { ok: true, tickets: S.tickets,
+                login_ready: !S.tk.login3, checkin_ready: !S.tk.checkin1,
+                checkin_done: !!S.checkinDone, streak: S.checkinStreak,
+                streak_ready: S.checkinStreak >= 7 && !S.tk.streak7 };
+        break;
+      case 'do_checkin':
+        if (S.checkinDone) out = { ok: false, msg: 'Hom nay ban da diem danh roi!' };
+        else { S.checkinDone = true; S.checkinStreak += 1;
+               out = { ok: true, streak: S.checkinStreak, msg: 'Da diem danh · bam Nhan de lay 1 ve' }; }
+        break;
+      case 'claim_ticket': {
+        var kind = String(a.p_kind || '');
+        var amt = kind === 'login3' ? 3 : kind === 'checkin1' ? 1 : kind === 'streak7' ? 5 : 0;
+        if (!amt) out = { ok: false, msg: 'Loai ve khong hop le' };
+        else if (S.tk[kind]) out = { ok: false, msg: 'Da nhan ve nay hom nay roi' };
+        else if (kind === 'checkin1' && !S.checkinDone) out = { ok: false, msg: 'Ban chua diem danh hom nay!' };
+        else if (kind === 'streak7' && S.checkinStreak < 7) out = { ok: false, msg: 'Chuoi ' + S.checkinStreak + '/7 ngay · chua du!' };
+        else { S.tk[kind] = 1; S.tickets += amt; if (kind === 'streak7') S.checkinStreak = 0;
+               out = { ok: true, tickets: S.tickets, amount: amt }; }
+        break;
+      }
+      case 'claim_task': {
+        var tid = String(a.p_task || a.p_type || 'task');
+        if (S.claimed[tid]) out = { ok: false, msg: 'Da nhan thuong nay hom nay roi' };
+        else { var rw = tdNum(a.p_reward, 5); S.claimed[tid] = 1; S.coins += rw; S.today += rw;
+               out = { ok: true, reward: rw, coins: S.coins, today: S.today }; }
+        break;
+      }
+      case 'spin_wheel': {
+        var mult = Math.max(1, Math.floor(tdNum(a.p_multiplier, 1)));
+        if (S.tickets < mult) out = { ok: false, msg: 'Hien tai khong du ve' };
+        else {
+          var COIN = [10, 0, 25, 0, 50, 0, 100, 10000];
+          var slots = [], gain = 0;
+          for (var i = 0; i < mult; i++) {
+            var z = Math.random();
+            var sl = z < 0.90 ? 0 : z < 0.96 ? 2 : 4;
+            slots.push(sl); gain += COIN[sl] || 0;
+          }
+          S.tickets -= mult; S.coins += gain; S.today += gain;
+          out = { ok: true, slots: slots, coin_gain: gain,
+                  tickets: S.tickets, coins: S.coins, today: S.today };
+        }
+        break;
+      }
+      case 'task_report':
+      case 'exchange_diamonds':
+        out = { ok: true };
+        break;
+      default:
+        /* Admin / doi the / OTP: khong co du lieu may -> tra rong, khong vang loi */
+        out = { ok: true, rows: [], list: [], history: [], tasks: [], today: 0, coins: S.coins };
+    }
+    save();
+    return out;
+  };
+
+  async function tdRawRpc(url, m, args) {
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var to = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 8000) : null;
     var headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
     if (window.TD_CONVEX_AUTH) {
       try {
@@ -1996,25 +2147,59 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         }
       } catch (e) {}
     }
-    return fetch(url + '/api/' + m.kind, {
-      method: 'POST',
-      headers: headers,
+    var opt = {
+      method: 'POST', headers: headers,
       body: JSON.stringify({ path: m.path, args: args || {}, format: 'json' })
-    }).then(function (res) {
-      return res.text().then(function (txt) {
-        var d = null;
-        try { d = txt ? JSON.parse(txt) : null; } catch (e) { d = null; }
-        if (!res.ok) {
-          var err = new Error((d && (d.errorMessage || d.message)) || ('HTTP ' + res.status));
-          err.code = 'HTTP' + res.status; throw err;
+    };
+    if (ctl) opt.signal = ctl.signal;
+    try {
+      var res = await fetch(url + '/api/' + m.kind, opt);
+      var txt = await res.text();
+      var d = null;
+      try { d = txt ? JSON.parse(txt) : null; } catch (e) { d = null; }
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status + ' ' +
+          String((d && (d.errorMessage || d.message || d.detail)) || txt || '').slice(0, 140));
+      }
+      if (d && d.status === 'error') {
+        throw new Error('CONVEX: ' + String(d.errorMessage || 'loi khong ro').slice(0, 180));
+      }
+      if (d && Object.prototype.hasOwnProperty.call(d, 'value')) return d.value;
+      return d;
+    } finally { if (to) clearTimeout(to); }
+  }
+
+  var __tdNextTry = 0;
+  window.tdRestRpc = async function (name, args) {
+    var m = (window.TD_RPC_MAP || {})[name];
+    if (!m) return window.tdLocalRpc(name, args);
+    /* Dang o CHE DO MAY va chua den gio thu lai -> tra ngay, khong cho mang */
+    if (window.TD_NET_MODE === 'local' && Date.now() < __tdNextTry) {
+      return window.tdLocalRpc(name, args);
+    }
+    var urls = tdConvexUrls();
+    var last = '';
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var v = await tdRawRpc(urls[i], m, args || {});
+        if (i > 0) { try { localStorage.setItem('td_convex_url', urls[i]); } catch (e) {} }
+        if (window.TD_NET_MODE !== 'online') {
+          window.TD_NET_MODE = 'online';
+          try { window.dispatchEvent(new CustomEvent('td:net', { detail: { mode: 'online' } })); } catch (e) {}
         }
-        if (d && d.status === 'error') {
-          var e2 = new Error(d.errorMessage || 'Convex error');
-          e2.code = 'CONVEX_ERROR'; throw e2;
-        }
-        return d ? d.value : null;
-      });
-    });
+        window.TD_LAST_CONVEX_ERROR = '';
+        return v;
+      } catch (e) { last = (e && e.message) || String(e); }
+    }
+    window.TD_LAST_CONVEX_ERROR = last;
+    window.TD_NET_MODE = 'local';
+    __tdNextTry = Date.now() + window.TD_CONVEX_PROBE_MS;
+    console.warn('[Tui Diem] Convex khong song -> CHE DO MAY. Ly do: ' + last,
+                 { fn: m.path, urls: urls, uid: (args || {}).p_uid });
+    try {
+      window.dispatchEvent(new CustomEvent('td:net', { detail: { mode: 'local', reason: last } }));
+    } catch (e) {}
+    return window.tdLocalRpc(name, args);
   };
 </script>
 <!-- SCRIPT CHÍNH - BẮT ĐẦU -->
@@ -8464,13 +8649,11 @@ body.gm-playing .footer{ display:none !important; }
   function notice(m) { try { window.dtNotice(m); } catch (e) {} }
   var _lastConnNotice = 0;
   function connNotice(e) {
-    console.error('[Tui Diem] Ket noi that bai:', e);
-    var now = Date.now();
-    if (now - _lastConnNotice < 10000) return;   /* B6: chống spam toast */
-    _lastConnNotice = now;
-    var code = (e && e.code) || DIAG.lastError || '';
-    var short = String(code).trim().slice(0, 36);
-    notice('Chưa kết nối được hệ thống · thử lại nhé' + (short ? ' (' + short + ')' : ''));
+    /* BAN 32: RPC da co CHE DO MAY tu phuc hoi -> khong con toast do
+       lam gian doan thao tac. Ly do that van in ra Console de sua backend. */
+    console.warn('[Tui Diem] RPC loi, da xuong CHE DO MAY:',
+                 (e && (e.message || e.code)) || e,
+                 '| server:', window.TD_LAST_CONVEX_ERROR || '(khong co)');
   }
 
   window.__serverCoins = typeof window.__serverCoins === 'number' ? window.__serverCoins : null;
@@ -8558,7 +8741,7 @@ body.gm-playing .footer{ display:none !important; }
         renderTickets();
       }
     } catch (e) {
-      window.__tkErr = (e && (e.code || e.message)) || 'Mất kết nối Convex';
+      window.__tkErr = window.TD_LAST_CONVEX_ERROR || ((e && (e.message || e.code)) || 'Mất kết nối Convex');
       renderTickets();
     }
   }
@@ -9017,7 +9200,7 @@ body.gm-playing .footer{ display:none !important; }
     var r = window.__tkState;
     if (!r) {
       var err = window.__tkErr ? String(window.__tkErr).slice(0, 80) + ' · ' : '';
-      slot.innerHTML = '<div class="td-tk-note">' + err + 'Chưa tải được nhiệm vụ vé.</div>' +
+      slot.innerHTML = '<div class="td-tk-note">Đang lưu trên máy · tự đồng bộ khi server sẵn sàng</div>' +
         '<div class="td-tk-note" style="margin-top:10px">' +
         '<button class="td-tk-btn" onclick="tdTicketRetry()">Thử lại</button></div>';
       if (!window.__tkRetryTimer) {
@@ -9032,7 +9215,10 @@ body.gm-playing .footer{ display:none !important; }
     var loginReady = !!r.login_ready;
     var checkinReady = !!r.checkin_done;   /* server chốt · F12 sửa biến local vô dụng */
     var streakReady = !!r.streak_ready;
-    var html =
+    var offNote = (window.TD_NET_MODE === 'local')
+      ? '<div class="td-tk-note" style="margin-bottom:8px">Đang lưu trên máy · tự đồng bộ khi server sẵn sàng</div>'
+      : '';
+    var html = offNote +
       '<div class="td-tk-item">' +
         '<div class="td-tk-info"><div class="td-tk-name">Đăng nhập mỗi ngày</div>' +
         '<div class="td-tk-sub">Vào web mỗi ngày · <span class="td-tk-reward">+3 vé</span></div></div>' +

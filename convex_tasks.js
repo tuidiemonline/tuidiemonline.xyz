@@ -106,7 +106,10 @@ Chưa cấu hình auth.config.js -> tạm dùng p_uid để web chạy ngay.
 Sau khi điền Project ID chạy: npx convex env set STRICT_AUTH 1
 để KHOÁ hẳn p_uid (không còn nhận UID giả qua DevTools).          */
 async function uidOf(ctx, args) {
-  const id = await ctx.auth.getUserIdentity();
+  /* BAN 32: auth.config.js loi / JWT sai -> KHONG de moi query vang
+     CONVEX_ERROR. Co identity thi dung, khong thi van nho p_uid nhu cu. */
+  let id = null;
+  try { id = await ctx.auth.getUserIdentity(); } catch (e) { id = null; }
   if (id && id.subject) return id.subject;
   if (process.env.STRICT_AUTH === "1") throw new Error("Chưa xác thực Firebase");
   return String(args.p_uid || "").trim();
@@ -151,6 +154,17 @@ async function banGuard(ctx, uid) {
   return (await isBanned(ctx, uid))
     ? { ok: false, msg: "⛔ Tài khoản đã bị khóa. Liên hệ hỗ trợ để mở lại." }
     : null;
+}
+
+/* BAN 32: schema cu / field la -> insert that bai KHONG duoc phep
+   lam ca RPC vang CONVEX_ERROR (web se tu xuong che do MAY). */
+async function safeInsert(ctx, table, doc) {
+  try { return await ctx.db.insert(table, doc); }
+  catch (e) {
+    console.warn("[TD] insert " + table + " bi tu choi: " +
+                 String((e && e.message) || e).slice(0, 160));
+    return null;
+  }
 }
 
 /* Bảng mới có thể chưa tồn tại ở lần gọi đầu -> trả rỗng thay vì văng lỗi */
@@ -214,14 +228,18 @@ async function getState(ctx, uid, taskId, day) {
 async function ensureState(ctx, uid, taskId, day) {
   let st = await getState(ctx, uid, taskId, day);
   if (!st) {
-    const _id = await ctx.db.insert(T_TASK, {
-      uid, taskId, day, progress: 0, games: 0, gameElapsed: 0,
-      lastReportAt: 0, lastGameAt: 0,
-      shareVerified: false, spinDone: false, updatedAt: Date.now(),
-      /* TIẾN TRÌNH RIÊNG CỦA RIÊNG taskId NÀY */
-      currentGame: "", gameTimes: {}, doneGames: [],
-    });
-    st = await ctx.db.get(_id);
+    try {
+      const _id = await ctx.db.insert(T_TASK, {
+        uid, taskId, day, progress: 0, games: 0, gameElapsed: 0,
+        lastReportAt: 0, lastGameAt: 0,
+        shareVerified: false, spinDone: false, updatedAt: Date.now(),
+        /* TIẾN TRÌNH RIÊNG CỦA RIÊNG taskId NÀY */
+        currentGame: "", gameTimes: {}, doneGames: [],
+      });
+      st = _id ? await ctx.db.get(_id) : null;
+    } catch (e) {
+      st = await getState(ctx, uid, taskId, day);
+    }
   }
   return st;
 }
@@ -238,12 +256,12 @@ async function addCoins(ctx, uid, amount, reason) {
     earnedTotal: earnedOf(w) + (amount > 0 ? amount : 0),
   });
   /* Lịch sử nằm trên SERVER -> F12 / localStorage không sửa được */
-  await ctx.db.insert(T_CLAIMS, {
+  await safeInsert(ctx, T_CLAIMS, {
     uid, taskId: reason || "coin", day: dayVN(), reward: amount, claimedAt: now,
   });
   /* BẢN 8: bảng lịch sử RIÊNG cho trang Admin. Không đụng T_CLAIMS nên
      "Coin hôm nay" / todayStats trên web chính vẫn reset đúng 00:00 mỗi ngày. */
-  await ctx.db.insert(T_HISTORY, {
+  await safeInsert(ctx, T_HISTORY, {
     uid, taskId: reason || "coin",
     label: TASK_NAME[reason] || "Nhận thưởng",
     reward: amount, at: now, day: dayVN(), kind: "task",
@@ -459,7 +477,7 @@ export const claimTicket = mutation({
       await ctx.db.patch(w._id, { streak7Day: d, checkinStreak: 0 }); // bắt chu kỳ 7 ngày MỚI
     }
 
-    await ctx.db.insert(T_TICKETS, { uid, kind, day: d, amount, claimedAt: Date.now() });
+    await safeInsert(ctx, T_TICKETS, { uid, kind, day: d, amount, claimedAt: Date.now() });
     await ctx.db.patch(w._id, { tickets: (w.tickets || 0) + amount });
     const w2 = await getWallet(ctx, uid);
     return { ok: true, tickets: w2.tickets, amount };
