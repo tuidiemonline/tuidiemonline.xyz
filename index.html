@@ -695,6 +695,55 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 </script>
 </head>
 <body>
+<script>
+/* ================================================================
+   BAN 30 · MOI TAI KHOAN = MOI KHO DU LIEU (khong xoa users / wallets)
+   1) tdUid(): luon lay UID cua acc DANG dang nhap. Khong dung cache RAM
+      cua acc truoc -> p_uid gui len Convex khong bao gio bi nham.
+   2) Moi key localStorage (coin, nickname, lich su, profile...) tu dong
+      them namespace theo UID. 2 acc / 5000 acc deu doc dung cua minh.
+      Cac key he thong (Firebase Auth, session, link OTP, map dang nhap)
+      duoc giu nguyen de khong gay dang xuat ngoai y muon.
+   ================================================================ */
+(function () {
+  'use strict';
+  window.tdUid = function () {
+    try {
+      var a = window.fbAuth;
+      if (a && a.currentUser && a.currentUser.uid) return String(a.currentUser.uid);
+      return String(localStorage.getItem('firebaseUid') || '');
+    } catch (e) { return ''; }
+  };
+
+  var BYPASS = {
+    firebaseUid: 1, td_session: 1, td_otp_url: 1, landingSeen: 1, inGame: 1,
+    td_reg_name: 1, td_reg_mail: 1, previousScreen: 1, fromProfile: 1,
+    td_notice_seen: 1, st_notify: 1, walletMode: 1, td_cache_valid: 1,
+    survivalState: 1
+  };
+  var GLOBAL_PREFIX = ['firebase:', 'td_user_', 'td_reset_pending_', 'td_notice_'];
+  function ns() {
+    var id = '';
+    try { id = window.tdUid(); } catch (e) {}
+    return 'tdacc:' + (id || 'anon') + ':';
+  }
+  function map(k) {
+    k = String(k);
+    if (BYPASS[k]) return k;
+    for (var i = 0; i < GLOBAL_PREFIX.length; i++) {
+      if (k.indexOf(GLOBAL_PREFIX[i]) === 0) return k;
+    }
+    return ns() + k;
+  }
+  try {
+    var S = Storage.prototype;
+    var g = S.getItem, st = S.setItem, rm = S.removeItem;
+    S.getItem = function (k) { return g.call(this, map(k)); };
+    S.setItem = function (k, v) { return st.call(this, map(k), v); };
+    S.removeItem = function (k) { return rm.call(this, map(k)); };
+  } catch (e) {}
+})();
+</script>
 <div id="gameLoadingScreen">
   <img src="https://i.postimg.cc/X7JwTt2j/3faf07f7-5e5e-4180-afbe-d9f847405eea.png" class="gls-bg-img" alt="Loading">
   <div class="gls-overlay"></div>
@@ -1184,7 +1233,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       </div>
       <div class="stat-v2-row">
         <span class="stat-v2-label">Coin hôm nay</span>
-        <span class="stat-v2-value" id="todayPoints">260</span><script>/* B6: số có ngay ở khung hình đầu tiên */
+        <span class="stat-v2-value" id="todayPoints">0</span><script>/* B6: số có ngay ở khung hình đầu tiên */
 (function(){try{if(localStorage.getItem('td_cache_valid')==='1'){var v=localStorage.getItem('todayPoints');if(v!==null){var e=document.getElementById('todayPoints');if(e)e.textContent=Number(v).toLocaleString('vi-VN');}}}catch(e){}})();
 </script>
       </div>
@@ -1421,7 +1470,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       <!-- Số dư + mũi tên đổi đơn vị Coin / Kim cương -->
       <div style="margin-bottom: 35px; display: flex; justify-content: flex-start; align-items: center;">
         <div class="wc-amount-row" style="display: flex; align-items: baseline; gap: 10px;">
-          <div class="wc-amount" id="profileWalletAmount" style="font-size: 48px; font-weight: 700; color: #ffffff; line-height: 1;">4.774</div><script>/* B6: số có ngay ở khung hình đầu tiên */
+          <div class="wc-amount" id="profileWalletAmount" style="font-size: 48px; font-weight: 700; color: #ffffff; line-height: 1;">0</div><script>/* B6: số có ngay ở khung hình đầu tiên */
 (function(){try{if(localStorage.getItem('td_cache_valid')==='1'){var v=localStorage.getItem('userPoints');if(v!==null){var e=document.getElementById('profileWalletAmount');if(e)e.textContent=Number(v).toLocaleString('vi-VN');}}}catch(e){}})();
 </script>
           <button class="wc-unit-switch" id="profileWalletUnit" onclick="toggleWalletMode()" aria-label="Đổi đơn vị hiển thị">
@@ -1996,7 +2045,7 @@ function tdTotalCoins() {
     v += parseInt(localStorage.getItem('videoPoints'), 10) || 0;
     if (v > 0) return v;
   } catch (e) {}
-  return 4774;   /* seed coin cũ: không hiện 0 / 3 chấm lúc chờ server */
+  return 0;   /* BAN 30: acc moi = 0, khong con seed 4.774 cua acc khac */
 }
 /* ===== 16/11 · CHỐT CÁCH VẼ (giống hệt "Thu nhập của tôi") =====
    - Chưa có số từ server: GIỮ SỐ CŨ (localStorage), không vẽ 3 chấm.
@@ -2019,9 +2068,9 @@ function tdNum(k, dflt) {
 window.tdPaint = function () {
   try {
     var t = (typeof window.__serverToday === 'number')
-      ? window.__serverToday : tdNum('todayPoints', 260);
+      ? window.__serverToday : tdNum('todayPoints', 0);
     var c = (typeof window.__serverCoins === 'number')
-      ? window.__serverCoins : tdNum('userPoints', 4774);
+      ? window.__serverCoins : tdNum('userPoints', 0);
     var tpEl = document.getElementById('todayPoints');
     if (tpEl) {
       var txt = Number(t).toLocaleString('vi-VN');
@@ -2340,7 +2389,7 @@ function updateUserIdUI() {
   const el = document.getElementById('userId');
   // ID tài khoản hiển thị trong Cài đặt luôn là User UID thật trong Firebase Console
   const u = (window.fbAuth && window.fbAuth.currentUser) || null;
-  const uid = (u && u.uid) || currentFirebaseUid || localStorage.getItem('firebaseUid') || '';
+  const uid = window.tdUid();
   if (el) el.textContent = uid || 'Đang tải...';
 }
 
@@ -2605,7 +2654,7 @@ function renderSettings() {
   const nick = info.bietDanh || profile.nick || (u && u.displayName) || 'Người dùng';
   const mail = (u && u.email) || info.email || '—';
   // ID tài khoản = đúng User UID do Firebase Console cấp (bất biến, không ai sửa được)
-  const uid = (u && u.uid) || currentFirebaseUid || localStorage.getItem('firebaseUid') || '';
+  const uid = window.tdUid();
   const setText = function (id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
@@ -3141,8 +3190,7 @@ window.dtOpenTaxi   = function(){ dtOpenDirect('taxi'); };  // tương thích t�
    Không còn sheet tùy chỉnh. Chia sẻ xong -> server ghi log -> bấm Nhận lấy coin. */
 function dtShareApp(){
   var payload = {
-    p_uid: (window.fbAuth && window.fbAuth.currentUser && window.fbAuth.currentUser.uid) ||
-           localStorage.getItem('firebaseUid') || '',
+    p_uid: window.tdUid(),
     p_task: 'ref', p_progress: 1, p_ready: false, p_share: true
   };
   var done = async function(){
@@ -6961,11 +7009,7 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
   };
 
   function peUser() { return (window.fbAuth && window.fbAuth.currentUser) || null; }
-  function peUid() {
-    var u = peUser();
-    return (u && u.uid) || (typeof currentFirebaseUid !== 'undefined' && currentFirebaseUid)
-      || localStorage.getItem('firebaseUid') || '';
-  }
+  function peUid() { return window.tdUid ? window.tdUid() : ''; }
   function peSplitName(full) {
     var parts = String(full || '').trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return { first: '', last: '' };
@@ -7571,9 +7615,8 @@ body.gm-playing .footer{ display:none !important; }
     }).format(new Date());
   }
   function who() {
-    if (window.__tdUid) return window.__tdUid;
-    var u = window.fbAuth && window.fbAuth.currentUser;
-    var id = (u && u.uid) || localStorage.getItem('firebaseUid') || '';
+    /* BAN 30: UID cua acc DANG dang nhap, khong dung cache cua acc truoc */
+    var id = window.tdUid ? window.tdUid() : '';
     if (id) window.__tdUid = id;
     return id;
   }
@@ -8333,9 +8376,8 @@ body.gm-playing .footer{ display:none !important; }
      ================================================================ */
   var DIAG = { rest: null, lastError: '' };
   function who() {
-    if (window.__tdUid) return window.__tdUid;
-    var u = window.fbAuth && window.fbAuth.currentUser;
-    var id = (u && u.uid) || localStorage.getItem('firebaseUid') || '';
+    /* BAN 30: UID cua acc DANG dang nhap, khong dung cache cua acc truoc */
+    var id = window.tdUid ? window.tdUid() : '';
     if (id) window.__tdUid = id;
     return id;
   }
@@ -10067,11 +10109,7 @@ html, body{ overscroll-behavior-y:auto !important; }
     });
   } catch (e) {}
 
-  function uid() {
-    return window.__tdUid ||
-      (window.fbAuth && window.fbAuth.currentUser && window.fbAuth.currentUser.uid) ||
-      localStorage.getItem('firebaseUid') || '';
-  }
+  function uid() { return window.tdUid ? window.tdUid() : ''; }
   window.tdRedeemRpc = async function (name, args) {
     var payload = Object.assign({ p_uid: uid() }, args || {});
     return await window.tdRestRpc(name, payload);
@@ -10485,11 +10523,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     });
   } catch (e) {}
 
-  function curUid() {
-    return window.__tdUid ||
-      (window.fbAuth && window.fbAuth.currentUser && window.fbAuth.currentUser.uid) ||
-      localStorage.getItem('firebaseUid') || '';
-  }
+  function curUid() { return window.tdUid ? window.tdUid() : ''; }
   function call(name, args) {
     var payload = Object.assign({}, args || {});
     if (window.tdRedeemRpc) return window.tdRedeemRpc(name, payload);
@@ -10816,7 +10850,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   /* Dù đã bị sign-out vẫn hỏi được trạng thái khoá (đọc UID đã lưu) */
   async function banCheck() {
     var u = curUid();
-    try { if (!u) u = localStorage.getItem('firebaseUid') || ''; } catch (e) {}
+    try { if (!u) u = window.tdUid(); } catch (e) {}
     if (!u) return;
     try {
       var r = await call('ban_info', { p_uid: u });
@@ -11069,7 +11103,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   }
   function rpc(name, args) {
     if (window.tdRedeemRpc) return window.tdRedeemRpc(name, args || {});
-    var p = Object.assign({ p_uid: localStorage.getItem('firebaseUid') || '' }, args || {});
+    var p = Object.assign({ p_uid: window.tdUid() }, args || {});
     return window.tdRestRpc(name, p);
   }
 
@@ -11166,8 +11200,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   async function refreshBanText() {
     var ov = document.getElementById('tdBanOverlay');
     if (!ov || !ov.classList.contains('show')) return;
-    var u = (window.fbAuth && window.fbAuth.currentUser && window.fbAuth.currentUser.uid) ||
-      localStorage.getItem('firebaseUid') || '';
+    var u = window.tdUid();
     if (!u) return;
     try {
       var r = await rpc('ban_info', { p_uid: u });
@@ -11436,6 +11469,32 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
 #pe-change-password{ background:#111c2e !important; color:#ffffff !important; }
 #pe-change-password .pe-label{ color:#cbd5e1 !important; font-weight:600 !important; }
 </style>
+<style id="td-ban30-css">
+/* BAN 30 · BO KHUNG TRONG, GIU KHUNG NGOAI (ca OTP dang ky + Quen mat khau)
+   Truoc: input van giu border 1px + bo goc 12px tu CSS cu, nam trong wrapper
+   bo goc 8px -> 2 duong vien khong khop nhau. Gio input trong suot,
+   chi con 1 khung bao ben ngoai. */
+.td-otp-oneline .td-auth-field.td-otp-field input,
+.td-fg-field input,
+.td-fg-oneline .td-fg-field.td-fg-otp-field input{
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  width:100% !important; min-width:0 !important; height:32px !important;
+  padding:8px 0 !important; font-size:12px !important; color:#ffffff !important;
+}
+.td-auth-field input:focus, .td-fg-field input:focus{
+  border:0 !important; box-shadow:none !important; outline:0 !important;
+}
+/* Khung ngoai: cung mau, cung bo goc, cung do day cho ca 2 cho */
+.td-otp-oneline .td-auth-field.td-otp-field,
+.td-fg-field,
+.td-fg-oneline .td-fg-field.td-fg-otp-field{
+  border:1px solid #333333 !important; border-radius:8px !important;
+  background:#000000 !important; padding:0 9px !important; margin:0 !important;
+  box-shadow:none !important;
+}
+.td-fg-step > .td-fg-field{ margin-bottom:8px !important; }
+</style>
 <script>
 /* BẢN 29 · TÁCH VÍ THEO TÀI KHOẢN
    Khi đăng xuất / đổi acc, xoá cache UID + số coin cũ trong RAM & localStorage
@@ -11445,16 +11504,22 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   'use strict';
   var last = null;
   function clearCache() {
+    /* BAN 30: localStorage da tu tach theo UID -> KHONG xoa bang users/wallets,
+       KHONG xoa cache chung. Chi reset may bien RAM cua acc truoc. */
     window.__tdUid = '';
-    try { delete window.__serverCoins; delete window.__serverToday; } catch (e) {}
-    try { localStorage.removeItem('userPoints'); localStorage.removeItem('todayPoints'); } catch (e) {}
+    window.tdAccountInfo = {};
+    window.__tdPaintTotal = null; window.__tdPaintToday = null;
+    try {
+      delete window.__serverCoins; delete window.__serverToday;
+      delete window.__serverDiamonds;
+    } catch (e) {}
   }
   try {
     if (window.fbAuth && window.fbOnAuthStateChanged) {
       window.fbOnAuthStateChanged(window.fbAuth, function (u) {
         var id = (u && u.uid) || '';
         if (last !== null && last !== id) clearCache();
-        if (!id) clearCache();
+        if (!id) clearCache(); else window.__tdUid = id;
         last = id;
       });
     }
