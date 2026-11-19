@@ -183,3 +183,32 @@ grep TD_OTP_DEFAULT ~/tuidiemonline_termux/otp-config.js
    đăng nhập đúng acc → Cài đặt → Cập nhật thông tin cá nhân → gõ lại nick
    (gọi `setNickname` với UID đúng). Số coin cũ nếu muốn tách lại thì dùng
    trang Admin cộng/trừ thủ công, không reset DB.
+
+---
+
+## 5. BẢN 31 · Đồng hồ "Kết thúc phiên sau" chạy 24h liên tục
+
+`index.html` (khối vòng quay `QUAY LÀ CÓ QUÀ`) đã bỏ biến đếm cục bộ
+`h=24,m=2,sec=54`. Thay bằng **mốc thời gian tuyệt đối**:
+
+```
+LK_EPOCH = 01/01/2026 17:00 UTC  (= 00:00 giờ VN mỗi ngày)
+LK_CYCLE = 24h
+còn lại  = 24h - ((giờ hiện tại - LK_EPOCH) mod 24h)
+```
+
+- ✅ Tắt web / khoá màn hình / đổi acc → mở lại **vẫn tiếp tục**, không reset.
+- ✅ Mọi user tính cùng 1 công thức → **cùng một số giờ**, không phụ thuộc ai mở trước.
+- ✅ Chạm `00:00:00` → tự nhảy về **`24:00:00`** rồi đếm tiếp, mãi mãi.
+- ✅ **Không cần cron, không cần bảng Convex, không cần deploy backend**
+  → chỉ push `index.html` lên GitHub Pages là xong, né được `CONVEX_ERROR`.
+- Có thêm 1 lần lấy giờ server qua `/health` để hiệu chỉnh nếu điện thoại
+  user lệch giờ; nếu Render ngủ / CORS chặn thì im lặng bỏ qua, vẫn chạy đúng.
+- Muốn đổi giờ reset: sửa `LK_EPOCH` (giờ UTC). Ví dụ muốn reset 16:00 VN
+  → `Date.UTC(2026, 0, 1, 9, 0, 0)`.
+
+### Chống treo "Đang tải nhiệm vụ vé..."
+`syncTickets()` trước nuốt lỗi im lặng nên `__tkState` null mãi. Nay hiện lý
+do lỗi + nút **Thử lại** và tự retry sau 5s thay vì đứng chữ loading vĩnh viễn.
+Nguyên nhân gốc vẫn là Convex (`ticket_state` / `claim_ticket`): nhớ chạy
+`npx convex deploy` rồi vào Convex Dashboard → **Logs** nếu vẫn báo lỗi đỏ.

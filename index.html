@@ -5809,18 +5809,53 @@ window.closeOfferwallMe = function() {
   }
 
   var chances = 0, spinning = false, curDeg = 0;
-  var h = 24, m = 2, sec = 54, timer = null;
 
-  function pad(n){ return n < 10 ? '0' + n : '' + n; }
-  function tick(){
-    if (!document.getElementById('luckyScreen').classList.contains('show')) return;
-    sec--; if (sec < 0){ sec = 59; m--; }
-    if (m < 0){ m = 59; h--; }
-    if (h < 0){ h = 24; m = 0; sec = 0; }
-    document.getElementById('lkH').textContent = pad(h);
-    document.getElementById('lkM').textContent = pad(m);
-    document.getElementById('lkS').textContent = pad(sec);
+  /* === PHIEN 24H TOAN CUC ==========================================
+     Moc co dinh (UTC) + chu ky 24h. Moi user, moi lan mo web deu tinh ra
+     cung mot thoi diem ket thuc -> khong phu thuoc ai mo truoc, khong luu
+     localStorage. Tat web / khoa man hinh / doi acc van chay tiep.
+     Het 24h tu nhay ve 24:00:00 roi dem tiep (khong can cron, khong can DB).
+  */
+  var LK_CYCLE = 24 * 60 * 60 * 1000;
+  var LK_EPOCH = Date.UTC(2026, 0, 1, 17, 0, 0);  /* = 00:00 gio VN (UTC+7) moi ngay */
+  var lkClockOffset = 0, timer = null;
+
+  /* Lay gio server 1 lan (best-effort). Loi / CORS / Render ngu -> bo qua,
+     van chay dung bang gio may. Khong bao gio chan giao dien. */
+  (function syncLkClock(){
+    try {
+      var base = String(window.TD_OTP_DEFAULT || 'https://otp-server-xvsk.onrender.com').replace(/\/$/, '');
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var to = setTimeout(function(){ try { ctl && ctl.abort(); } catch (e) {} }, 3500);
+      fetch(base + '/health?t=' + Date.now(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+        .then(function (r) {
+          clearTimeout(to);
+          var d = r.headers && r.headers.get('Date');
+          if (d) { var t = Date.parse(d); if (!isNaN(t)) lkClockOffset = t - Date.now(); }
+          lkTick();
+        })
+        .catch(function () { clearTimeout(to); });
+    } catch (e) { /* im lang, dung gio may */ }
+  })();
+
+  function lkNow(){ return Date.now() + lkClockOffset; }
+  function lkRemainMs(){
+    var e = (lkNow() - LK_EPOCH) % LK_CYCLE;
+    if (e < 0) e += LK_CYCLE;
+    var left = LK_CYCLE - e;
+    return left > 0 ? left : LK_CYCLE;   /* cham 0 -> tu ve 24h */
   }
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function lkTick(){
+    var total = Math.floor(lkRemainMs() / 1000);
+    var eh = document.getElementById('lkH');
+    var em = document.getElementById('lkM');
+    var es = document.getElementById('lkS');
+    if (eh) eh.textContent = pad(Math.floor(total / 3600));
+    if (em) em.textContent = pad(Math.floor((total % 3600) / 60));
+    if (es) es.textContent = pad(total % 60);
+  }
+  function tick(){ lkTick(); }   /* giu ten cu cho cac cho goi khac */
   function straighten(){
     var comp = -(curDeg % 360);
     document.querySelectorAll('.lk-num-in').forEach(function(n){
@@ -5849,7 +5884,8 @@ window.closeOfferwallMe = function() {
     document.body.classList.add('lucky-open');
     window.scrollTo(0,0);
     if (timer) clearInterval(timer);
-    timer = setInterval(tick, 1000);
+    lkTick();                       /* cap nhat ngay, khong doi 1 giay */
+    timer = setInterval(lkTick, 1000);
   };
   window.closeLucky = function(silent){
     document.getElementById('luckyScreen').classList.remove('show');
@@ -5861,6 +5897,10 @@ window.closeOfferwallMe = function() {
       if (nav && window.switchBottomNav) window.switchBottomNav('ads', nav);
     }
   };
+  /* Khoa man hinh / chuyen tab: setInterval bi throttle -> tinh lai ngay khi tro lai */
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) lkTick(); });
+  window.addEventListener('focus', lkTick);
+  window.addEventListener('pageshow', lkTick);
   window.hideLuckyResult = function(){ document.getElementById('lkResult').classList.remove('show'); };
 
   window.adjustMultiplier = function(dir){
@@ -8507,13 +8547,20 @@ body.gm-playing .footer{ display:none !important; }
       var r = await rpc('ticket_state', {});
       if (r && r.ok) {
         window.__tkState = r;
+        window.__tkErr = '';
         window.__tkCheckinDone = !!r.checkin_done;
         window.__tickets = parseInt(r.tickets, 10) || 0;
         var el = document.getElementById('lkChances');
         if (el) el.textContent = window.__tickets;
         renderTickets();
+      } else {
+        window.__tkErr = (r && r.msg) || 'Không đọc được dữ liệu vé';
+        renderTickets();
       }
-    } catch (e) {}
+    } catch (e) {
+      window.__tkErr = (e && (e.code || e.message)) || 'Mất kết nối Convex';
+      renderTickets();
+    }
   }
   async function firstBoot() {
     if (booted) return;
@@ -8968,7 +9015,20 @@ body.gm-playing .footer{ display:none !important; }
   function renderTickets() {
     var slot = document.getElementById('weekTicketSlot'); if (!slot) return;
     var r = window.__tkState;
-    if (!r) { slot.innerHTML = '<div class="td-tk-note">Đang tải nhiệm vụ vé...</div>'; return; }
+    if (!r) {
+      var err = window.__tkErr ? String(window.__tkErr).slice(0, 80) + ' · ' : '';
+      slot.innerHTML = '<div class="td-tk-note">' + err + 'Chưa tải được nhiệm vụ vé.</div>' +
+        '<div class="td-tk-note" style="margin-top:10px">' +
+        '<button class="td-tk-btn" onclick="tdTicketRetry()">Thử lại</button></div>';
+      if (!window.__tkRetryTimer) {
+        window.__tkRetryTimer = setTimeout(function () {
+          window.__tkRetryTimer = null;
+          if (!window.__tkState) { try { syncTickets(); } catch (e) {} }
+        }, 5000);
+      }
+      return;
+    }
+    if (window.__tkRetryTimer) { clearTimeout(window.__tkRetryTimer); window.__tkRetryTimer = null; }
     var loginReady = !!r.login_ready;
     var checkinReady = !!r.checkin_done;   /* server chốt · F12 sửa biến local vô dụng */
     var streakReady = !!r.streak_ready;
@@ -8994,6 +9054,11 @@ body.gm-playing .footer{ display:none !important; }
       '</div>';
     slot.innerHTML = html;
   }
+  window.tdTicketRetry = function () {
+    window.__tkErr = '';
+    try { renderTickets(); } catch (e) {}
+    try { syncTickets(); } catch (e) {}
+  };
   window.tdTicketCheckin = async function () {
     try {
       var r = await rpc('do_checkin', {});
