@@ -1,44 +1,8 @@
 /* ==================================================================
-tasks.js · BẢN 27  (từ file tasks.js BẢN 25 bạn gửi, ĐÃ SỬA)
-------------------------------------------------------------------
-- Bỏ hoàn toàn devCode / chế độ test: server KHÔNG trả mã 6 số nữa.
-- Giữ p_otp trong validator, giữ requestOtp / verifyOtp để không gãy
-  frontend, nhưng mã thật do otp-server (Render + Brevo) sinh & gửi.
-- Cách dùng: copy file này thành convex/tasks.js rồi `npx convex deploy`.
-  (Trong gói này convex/tasks.js ĐÃ là bản này rồi, khỏi copy lại.)
-================================================================== */
-/* ================================================================
-TÚI ĐIỂM ONLINE · SERVER  (BẢN 25 · ADMIN TỔNG (server giữ nguyên logic Bản 10): ONLINE / BIỆT DANH / LỊCH SỬ 2 NGÀY / CỘNG-TRỪ COIN / KHOÁ ACC / THÔNG BÁO CHUNG)
-File này copy thành: convex/tasks.js  ->  npx convex deploy
-
-LỖI THẬT (log 00:44): "Failed to insert or update a document in table
-'users_coins' ... Object contains extra field 'stream' that is not in the
-validator". Bảng users_coins CÓ schema.ts định nghĩa riêng (từ code cũ),
-nên MỌI patch/insert vào đó đều bị Convex chặn, dù bản 5 đã bỏ
-legacySeeded / tdFixV4. Xoá bảng bằng import /dev/null cũng vô dụng vì
-pingLogin / claimTask / claimTicket / doCheckin chạy lại là ghi đè ngay.
-
-CÁCH CHỐT LẦN 6: KHÔNG ĐỤNG VÀO 5 BẢNG CŨ NỮA. Toàn bộ ví + tiến trình
-chuyển sang 5 bảng MỚI (chưa khai báo trong schema -> Convex để schemaless,
-không validate field nữa). Không cần sửa schema.ts, không cần xoá bảng,
-không cần Dashboard, không cần .env / build.
-
-  users_coins      -> td_wallet        (ví: coins / today / vé / kim cương)
-  task_state       -> td_task_state
-  coin_task_claims -> td_claims
-  ticket_claims    -> td_ticket_claims
-  diamond_logs     -> td_diamond_logs
-
-SỐ: ví mới seed đúng 4.774 coin TỔNG + 260 coin HÔM NAY ngay lúc insert.
-Query và Mutation cùng đọc coinsOf(w) -> số trước/sau ghi LUÔN BẰNG NHAU.
-Chưa có ví (query chạy trước mutation) vẫn trả 4.774 / 260 -> không nháy 0.
-Vòng quay 10 coin 90% · 25 coin 6% · 50 coin 4% · hộp quà/100/10000 = 0%.
-BẢN 10: 12 nhiệm vụ (thêm Worms Zone / Wear the Helmet / Bouncy Dunk), 3 vé độc lập, chuỗi 7 ngày, chặn F12, URL prod.
-
-RPC: coinState / coinTaskClaimsToday / ticketState / todayStats
-     claimTask / taskReport / pingLogin / claimTicket / doCheckin /
-     spinWheel / exchangeDiamonds + 2 internalMutation.
-================================================================ */
+   tasks.js · BAN 34 · BAN THAM CHIEU (khong deploy file nay)
+   Noi dung code GIONG HET convex/tasks.js. File deploy that la
+   convex/tasks.js -> chay `npx convex deploy`.
+   ================================================================== */
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 

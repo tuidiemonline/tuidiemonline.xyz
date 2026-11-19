@@ -1,143 +1,85 @@
-# TÚI ĐIỂM ONLINE · BẢN 32 (hết CONVEX_ERROR)
+# TÚI ĐIỂM ONLINE · BẢN 34 (TỔNG HỢP TOÀN BỘ YÊU CẦU)
 
-File nén: **tuidiemonline-final.zip** · bung ra = thư mục `tuidiemonline-final/`.
+File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
----
-
-## 1. Lỗi bạn vừa gặp là gì
-
-Ảnh 16:21 / 16:22 hiện `CONVEX_ERROR · Chưa tải được nhiệm vụ vé.` và toast
-`Chưa kết nối được hệ thống (CONVEX_ERROR)`. Đây **không phải lỗi cache, không
-phải lỗi Render/Brevo, cũng không phải lỗi đồng hồ vòng quay**.
-
-Chuỗi sự kiện thật:
-
-1. Web gọi `POST https://tough-canary-511.convex.cloud/api/query`
-   với `path = tasks:ticketState`.
-2. Convex trả `{ status: "error", errorMessage: "..." }` (chưa deploy hàm,
-   sai deployment URL, schema/validator chặn, hoặc hàm văng lỗi).
-3. Code cũ **nuốt `errorMessage`**, chỉ giữ `code = 'CONVEX_ERROR'` → bạn chỉ
-   thấy 1 chữ chung chung, không biết sửa cái gì.
-4. `syncTickets()` văng lỗi → `__tkState` null → trang vé đứng chữ
-   "Đang tải..." / hiện ô lỗi + nút Thử lại; `connNotice()` bắn toast đỏ ở
-   trang nhiệm vụ.
-
-> ⚠️ Mình **không truy cập được deployment Convex của bạn từ đây** để đọc log,
-> nên không thể khẳng định `errorMessage` cụ thể là dòng nào. Bản 32 làm 2 việc:
-> **in rõ lỗi thật ra Console** để bạn sửa tận gốc, **và web không bao giờ chết
-> nữa** dù lỗi đó còn hay hết.
+> Đã mở **hết 15 file** trong gói, rà từng dòng, vá tổng hợp và kiểm tra chéo.
+> Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
+> toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
 ---
 
-## 2. Bản 32 sửa những gì
+## 1. ⭐ Hai sổ coin RIÊNG BIỆT (quan trọng nhất)
 
-### A. `tdRestRpc` — tự phục hồi (sửa trong `index.html`)
-- **Timeout 8s** thay vì chờ vô hạn (mạng treo / deployment ngủ).
-- **In lỗi thật**: `HTTP 403 ...`, `CONVEX: Could not find function ...`,
-  `CONVEX: Uncaught Error ...` kèm URL + tên hàm + UID. Mở F12 → Console
-  hoặc gõ `tdDiag()` / `TD_LAST_CONVEX_ERROR` là thấy ngay.
-- **Tự xuống CHẾ ĐỘ MÁY** khi Convex không sống: `tdLocalRpc()` trả đủ
-  `coin_state / ticket_state / claim_ticket / do_checkin / claim_task /
-  spin_wheel / ping_login / today_stats ...` bằng `localStorage`.
-- Dữ liệu máy **vẫn tách theo `tdacc:<uid>:`** (bản 30) + thêm prefix
-  `tdloc:<uid>:` → **2 acc hay 5.000 acc vẫn không trùng nhau**. Reset đúng
-  00:00 giờ VN, giữ coin/vé/kim cương qua ngày.
-- **Mỗi 30s tự thử lại Convex 1 lần**; server sống → tự lấy lại số của server
-  (server vẫn là nguồn chân lý). Không cần bấm Thử lại.
-- `connNotice()` không còn bắn toast đỏ; `renderTickets()` hiện dòng nhỏ
-  *"Đang lưu trên máy · tự đồng bộ khi server sẵn sàng"* thay vì dòng lỗi.
+| | Coin hôm nay | Thu nhập của tôi |
+|---|---|---|
+| Ý nghĩa | Coin **kiếm được** trong ngày | **Tổng** coin từ khi tạo acc |
+| Khi kiếm +n | **+n** | **+n** |
+| Qua 00:00 VN | **về 0**, đếm lại | **giữ nguyên**, không reset |
+| Khi tiêu (đổi thẻ cào) | **đứng yên** | **-n** |
 
-### B. Đổi URL Convex không cần sửa file
-Nếu `npx convex deploy` đang đẩy sang deployment **khác** `tough-canary-511.convex.cloud`:
+- Ví dụ đúng: đang có **4.000** → kiếm 10 → `Coin hôm nay = 10`,
+  `Thu nhập = 4.010`. **Không bao giờ** biến thành 10.
+- Sang ngày mai: `Coin hôm nay = 0`, `Thu nhập vẫn 4.010`.
+- Đổi thẻ 10.000đ (9.000 coin): `Thu nhập = ...`, `Coin hôm nay` vẫn giữ số đã kiếm.
+- Kiếm coin → **cả 2 số nhảy ngay lập tức**, kể cả đang chế độ máy.
+- Server Convex trả về số **nhỏ hơn** (chưa có ví / đang offline) → **không được ghi đè** mất số của máy. Chỉ nhận số thấp hơn sau khi tiêu coin thật (`force`).
+- Kho lưu `tdacc:<uid>:wallet` → 2 acc hay **5.000 acc vẫn độc lập**.
+- Backend `convex/tasks.js` đã đúng sẵn: `addCoins` cộng cả 2, `exchangeDiamonds` chỉ trừ `coins`, `coinState` reset `today` theo `todayDate`. Bản 34 chỉ sửa phía web để không ghi đè nữa.
 
-```
-https://tuidiemonline.xyz/?convex=https://ten-that.convex.cloud
-```
-URL được lưu vào `localStorage`, dùng cho mọi lần sau. Hoặc gõ trong Console:
-```js
-tdSetConvex('https://ten-that.convex.cloud')
-tdSetConvex('')          // xoá, về mặc định
-```
-Lấy URL thật: chạy `npx convex deploy` (nó in URL), hoặc mở `npx convex dashboard`.
+## 2. Các yêu cầu khác đã gom hết
 
-### C. `convex/tasks.js` (và 2 bản tham chiếu) — bớt nguồn văng lỗi
-- `uidOf()`: `ctx.auth.getUserIdentity()` được bọc `try/catch` → auth config
-  lỗi không làm **mọi query** văng `CONVEX_ERROR`.
-- Thêm `safeInsert()`; `addCoins` / `claimTicket` / `ensureState` không còn để
-  1 lần insert bị schema từ chối làm sập cả RPC.
-- `rowsOf()` giữ nguyên cơ chế "bảng chưa tồn tại → trả rỗng".
+1. **Nhận +5 coin / +3 vé** → `Coin hôm nay`, `Thu nhập của tôi`, **vé tím trong vòng quay** cập nhật **ngay** (hết cảnh bấm xong vẫn `0`).
+2. **Xoá chữ** *"Đang lưu trên máy · tự đồng bộ khi server sẵn sàng"* ở trang Thưởng vé hàng tuần (nút **Thử lại** vẫn giữ).
+3. **Đổi biệt danh**: bấm *Cập nhật thông tin* → lưu theo UID, cập nhật `tdAccountInfo` + gọi lại `renderSettings()` → thoát ra **thấy đổi ngay**, không còn hiện `Quandeptrai`. Hồ sơ `tdacc:<uid>:profile` nên acc A không dính acc B.
+4. **Mọi thông tin cho phép sửa** (biệt danh / giới tính / ngày sinh / SĐT) đều tự làm mới giao diện khi bấm Cập nhật.
+5. **Ngày sinh tự thêm `/`**: gõ `22` → `22/`, `12` → `22/12/`, `2004` → `22/12/2004`. Chỉ nhận số, tối đa `DD/MM/YYYY`, bấm xóa vẫn được (không bị chèn lại dấu `/`).
+6. **Số điện thoại `+84` cố định**: user chỉ gõ `965479975`, không cần gõ `0` đầu; lỡ gõ `0` hoặc `84` cũng tự bỏ. Áp cả ô Cài đặt lẫn ô Đăng ký.
+7. **Gmail trong Cài đặt**: 1 dòng, thẳng hàng, căn phải, không xuống dòng / không vỡ khung (chữ quá dài thì thu gọn có dấu `…`).
+8. **Liên hệ hỗ trợ**: bỏ Zalo, đổi sang **Messenger** `https://m.me/tuidiemonline.cskh` (cả popup nạp kim cương + hướng dẫn gửi bill).
+9. **Điều khoản tick 1 lần duy nhất**: lưu `td_policy_agreed_v1`. Tắt web, đăng xuất, đăng nhập acc khác → dấu tích cam **vẫn sẵn**, không phải tick lại. Áp cả đăng nhập tay lẫn nút Google.
+10. **Trang Đăng ký có nút quay lại** góc trái đầu trang: **khung ĐEN, mũi tên TRẮNG, KHÔNG viền xanh** (đúng lời dặn cuối). Bấm → về Đăng nhập.
+11. Đồng bộ **3 file `tasks.js`** (trước đó chỉ khác mỗi đoạn tiêu đề, thân code đã giống) → giờ identical 100%.
 
-### D. Giữ nguyên các bản trước
-- Bản 30: 1 acc = 1 kho, acc mới 0 coin, ô nhập 1 khung duy nhất.
-- Bản 31: đồng hồ *"Kết thúc phiên sau"* chạy 24h toàn cục, không cần cron.
-- Bản 28/29: OTP gửi mail thật qua Render + Brevo, `otp-config.js` trỏ sẵn.
-- `package.json` ở gốc để `npx convex deploy` không báo thiếu.
-
----
-
-## 3. Cấu trúc file (đã bỏ `backup/`)
+## 3. Cấu trúc file (15 file)
 
 ```
 tuidiemonline-final/
-├── index.html                  ← BẢN 32 (RPC tự phục hồi)
-├── otp-config.js               ← TD_CONVEX_URL + TD_OTP_DEFAULT
-├── package.json
-├── CNAME  ·  PING.md  ·  README.md
-├── convex/tasks.js             ← DEPLOY THẬT
+├── index.html                  ← BAN 34 (toan bo sua o day)
+├── otp-config.js               ← TD_CONVEX_URL + TD_OTP_DEFAULT (giu nguyen)
+├── package.json · CNAME · PING.md · README.md · .gitignore
+├── convex/tasks.js             ← DEPLOY THAT
 ├── convex/auth.config.js.example
-├── tasks.js  ·  convex_tasks.js   ← bản tham chiếu (cùng nội dung)
+├── tasks.js · convex_tasks.js  ← ban tham chieu (code giong het)
 └── otp-server/
-    ├── server.cjs  ·  package.json  ·  render.yaml  ·  .gitignore
+    ├── server.cjs · package.json · render.yaml · .gitignore
 ```
 
----
+`otp-server/server.cjs` dùng `process.env.BREVO_API_KEY`, **không có key thật** nào trong gói.
 
-## 4. LỆNH CẬP NHẬT · 1 lần chạy hết (có giải nén)
+## 4. LỆNH CẬP NHẬT · 1 lần chạy hết (có `unzip`)
 
 ```bash
-cd ~/tuidiemonline_termux && F=$(find ~ /sdcard/Download -type f \( -name 'tuidiemonline-final.zip' -o -name 'tuidiemonline-final.js' \) 2>/dev/null) && Z=$(ls -t $F 2>/dev/null | head -1) && [ -n "$Z" ] && cp "$Z" ./_ban.zip && unzip -o ./_ban.zip && cp -r tuidiemonline-final/. . && rm -rf tuidiemonline-final _ban.zip backup && git add . && (git commit -m "ban 32 - het CONVEX_ERROR" || true) && git push origin main && npx convex deploy
+cd ~/tuidiemonline_termux && F=$(find ~ /sdcard/Download -type f \( -name 'tuidiemonline-final.zip' -o -name 'tuidiemonline-final.js' \) 2>/dev/null) && Z=$(ls -t $F 2>/dev/null | head -1) && [ -n "$Z" ] && cp "$Z" ./_ban.zip && unzip -o ./_ban.zip && cp -r tuidiemonline-final/. . && rm -rf tuidiemonline-final _ban.zip backup && git add . && (git commit -m "ban 34 - tong hop" || true) && git push origin main && npx convex deploy
 ```
 
-> Xoá file zip **cũ** trong repo trước khi chạy để `ls -t` lấy đúng bản 32.
-> Hỏi `Yes` → `Y`. Hỏi GitHub Password → dán Personal Access Token `ghp_...`.
+> Xoá file zip **cũ** trong repo trước để `ls -t` lấy đúng bản 34.
+> Hỏi `Yes` → `Y`. Xong đợi Pages build ~1–2 phút, mở:
+> **`https://tuidiemonline.xyz/?v=16`**
 
-Sau khi Pages build (~1–2 phút) mở: `https://tuidiemonline.xyz/?v=14`
+## 5. Kiểm tra nhanh sau khi lên web
 
----
-
-## 5. Muốn sửa TẬN GỐC (khuyến khích)
-
-Chế độ máy CHỈ là dự phòng để web không chết; muốn số coin/vé nằm trên server cho mọi thiết bị:
-
-```bash
-cd ~/tuidiemonline_termux
-cat .env.local                 # xem CONVEX_DEPLOYMENT=dev:... hay prod:...
-npx convex deploy              # đọc URL nó in ra
-npx convex dashboard           # -> Logs, bấm lại web, đọc dòng đỏ
-```
-
-Ba khả năng hay gặp nhất:
-
-| Triệu chứng trong Logs / Console | Sửa |
-|---|---|
-| `Could not find function tasks:ticketState` | `convex/tasks.js` chưa lên đúng deployment → chạy lại `npx convex deploy` |
-| URL trong log khác `tough-canary-511.convex.cloud` | Mở `?convex=<URL thật>` hoặc sửa `TD_CONVEX_URL` trong `otp-config.js` |
-| `extra field ... not in the validator` | `convex/schema.ts` cũ khai báo bảng `td_*` → xoá khai báo đó hoặc dùng bảng khác |
-
-Kiểm tra nhanh trên điện thoại (F12 / Console):
-```js
-tdDiag()                       // thử 4 hàm, in kết quả
-TD_NET_MODE                    // 'online' = đang dùng server, 'local' = đang dùng máy
-TD_LAST_CONVEX_ERROR           // lý do thật
-```
-
----
+- Vào Cài đặt → Cập nhật thông tin cá nhân → đổi Biệt danh → bấm Cập nhật → **thoát ra thấy tên mới ngay**.
+- Gõ Ngày sinh `22122004` → hiện `22/12/2004`; gõ SĐT `0965479975` → hiện `+84965479975`.
+- Vào Nhiệm vụ bấm **Nhận** → `Coin hôm nay` **và** `Thu nhập của tôi` cùng tăng ngay.
+- Vào Thưởng vé bấm **Nhận +3 vé** → Vòng quay hiện **3 vé tím** ngay.
+- Đăng xuất → vào lại → **không phải tick điều khoản**, dấu cam vẫn còn.
+- Bấm **Liên hệ hỗ trợ** → mở `m.me/tuidiemonline.cskh`.
+- Console (nếu cần): `tdDiag()` · `TD_NET_MODE` · `TD_LAST_CONVEX_ERROR`.
 
 ## 6. Nhắc quan trọng
 
 1. 🔐 Không dán `BREVO_API_KEY` vào file nào; key chỉ nằm ở Render → Environment.
-2. ⏰ Setup UptimeRobot ping `/health` 5 phút (`PING.md`) để Render không ngủ.
-3. 📴 **Chế độ máy là dự phòng, lưu trên thiết bị đó**, không đồng bộ sang máy
-   khác. Khi Convex sống lại web tự lấy số server; chống F12 / chốt tỉ lệ chỉ
-   có hiệu lực ở chế độ `online`.
+2. ⏰ UptimeRobot ping `/health` 5 phút để Render không ngủ (`PING.md`).
+3. 📴 Chế độ máy vẫn là dự phòng (lưu trên thiết bị đó). Khi Convex sống lại, web tự lấy số server; chống F12 / chốt tỉ lệ chỉ có hiệu lực ở chế độ `online`.
 4. 🚫 Không `git add .` kéo `node_modules` / zip vào commit (lệnh trên đã dọn).
+5. 🧹 Nếu muốn xoá hẳn dữ liệu thử nghiệm cũ trên máy: F12 → `localStorage.clear()` rồi F5 (sẽ mất coin/vé đang lưu ở chế độ máy, cân nhắc trước khi làm).

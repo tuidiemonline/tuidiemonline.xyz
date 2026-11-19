@@ -800,6 +800,8 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 <!-- MÀN ĐĂNG KÝ: nền đen chữ trắng · không vân tay · không mã giới thiệu -->
 <div id="registerScreen" aria-hidden="true">
   <div class="td-auth">
+    <!-- BAN 34: nut quay lai goc trai · NEN DEN · MUI TEN TRANG · KHONG VIEN XANH -->
+    <button type="button" class="td-reg-back" onclick="tdCloseRegister()" aria-label="Quay lại Đăng nhập">&#10094;</button>
     <div class="td-auth-brand">
       <img class="td-auth-logo" src="https://i.postimg.cc/gk7ZvnVT/file-000000000c9c8206a77b793921e599e8.png" alt="Logo">
       <div class="td-auth-word">TÚI ĐIỂM ONLINE</div>
@@ -1126,7 +1128,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 
     <section class="st-group">
       <h2 class="st-group-title">HỖ TRỢ</h2>
-      <a class="st-row st-action" href="https://zalo.me/0965479975" target="_blank" rel="noopener">
+      <a class="st-row st-action" href="https://m.me/tuidiemonline.cskh" target="_blank" rel="noopener">
         <span class="st-row-label">Liên hệ hỗ trợ</span><i class="fas fa-chevron-right st-chev"></i>
       </a>
     </section>
@@ -1738,7 +1740,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <b>📌 Hướng dẫn nạp:</b><br>
         1. Chuyển khoản đến STK bên dưới<br>
         2. Ghi nội dung: <b id="depositNote">NAP [ID]</b><br>
-        3. Gửi bill cho admin qua Zalo<br>
+        3. Gửi bill cho admin qua Messenger<br>
         4. Kim cương sẽ được cộng trong 5-10 phút
       </div>
       <div class="info-row highlight" style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-left-color:#9C27B0;">
@@ -1958,6 +1960,146 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
   /* Tên RPC cũ -> tên hàm Convex. Vẫn giữ nguyên p_uid / p_type / p_day / p_reward...
      nên toàn bộ giao diện & luồng bấm "Nhận" bên dưới không phải sửa dòng nào.
      Reward, ngày VN và điều kiện hoàn thành đều do convex/tasks.js chốt. */
+
+   /* ================================================================
+      BAN 34 · HAI SO SACH RIENG BIET, MOI ACC 1 KHO
+      ----------------------------------------------------------------
+      total  = "Thu nhap cua toi"  : cong don mai, KHONG reset luc 00:00,
+                                     chi giam khi TIEU (doi the cao / doi KC).
+      today  = "Coin hom nay"      : chi coin KIEM duoc trong ngay,
+                                     00:00 gio VN -> ve 0, KHONG bao gio
+                                     bi tru khi tieu coin.
+      Moi lan kiem duoc n coin -> CA 2 so deu tang, nhung luu o 2 o rieng.
+      Khong con chung 1 bien / khong con ghi de 4000 -> 10.
+      Kho luu theo tdacc:<uid>:wallet -> 2 acc hay 5.000 acc van khong trung.
+      Server tra ve so nho hon (vi chua co vi / dang che do may) KHONG DUOC
+      ghi de mat so cua may. Chi nhan so thap hon khi co {force:true}
+      (sau khi tieu coin that su).
+      ================================================================ */
+   window.tdWUid = function () {
+     try { return (window.tdUid && window.tdUid()) || ''; } catch (e) { return ''; }
+   };
+   window.tdWKey = function () { return 'tdacc:' + (window.tdWUid() || 'anon') + ':wallet'; };
+   window.tdWDay = function () {
+     try {
+       return new Intl.DateTimeFormat('en-CA', {
+         timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'
+       }).format(new Date());
+     } catch (e) { return new Date().toISOString().slice(0, 10); }
+   };
+   window.tdWGet = function () {
+     var k = window.tdWKey(), raw = null, o = null;
+     try { raw = localStorage.getItem(k); o = JSON.parse(raw || 'null'); } catch (e) { o = null; }
+     if (!o || typeof o !== 'object') o = {};
+     var d = window.tdWDay();
+     if (o.day !== d) { o.day = d; o.today = 0; }   /* CHI reset today, total GIU NGUYEN */
+     o.total    = Math.max(0, parseInt(o.total, 10)    || 0);
+     o.today    = Math.max(0, parseInt(o.today, 10)    || 0);
+     o.tickets  = Math.max(0, parseInt(o.tickets, 10)  || 0);
+     o.diamonds = Math.max(0, parseInt(o.diamonds, 10) || 0);
+     if (!raw) {
+       /* Di san 1 LAN DUY NHAT cho acc dang mo: lay so cu tren may roi khoa lai,
+          acc khac tao sau se BAT DAU TU 0 (khong an nham so cua acc truoc). */
+       try {
+         if (localStorage.getItem('td_wallet_migrated') !== '1') {
+           o.total   = Math.max(o.total,   parseInt(localStorage.getItem('userPoints'), 10) || 0);
+           o.today   = Math.max(o.today,   parseInt(localStorage.getItem('todayPoints'), 10) || 0);
+           o.diamonds= Math.max(o.diamonds,parseInt(localStorage.getItem('userDiamonds'), 10) || 0);
+           localStorage.setItem('td_wallet_migrated', '1');
+         }
+         var uid = window.tdWUid();
+         var old = JSON.parse(localStorage.getItem('tdloc:' + uid + ':state') || 'null');
+         if (old) {
+           o.total   = Math.max(o.total,   parseInt(old.coins, 10)   || 0);
+           o.today   = Math.max(o.today,   parseInt(old.today, 10)   || 0);
+           o.tickets = Math.max(o.tickets, parseInt(old.tickets, 10) || 0);
+         }
+       } catch (e) {}
+     }
+     return o;
+   };
+   window.tdWSet = function (o) {
+     try {
+       localStorage.setItem(window.tdWKey(), JSON.stringify(o));
+       /* Mirror de cac script inline cu (B6) van doc dung ngay khung hinh dau */
+       localStorage.setItem('userPoints', String(o.total));
+       localStorage.setItem('todayPoints', String(o.today));
+       localStorage.setItem('userDiamonds', String(o.diamonds));
+       localStorage.setItem('videoPoints', '0');
+       localStorage.setItem('td_cache_valid', '1');
+     } catch (e) {}
+     try {
+       window.__serverCoins = o.total; window.__serverToday = o.today;
+       window.__serverDiamonds = o.diamonds;
+       userPoints = o.total; todayPoints = o.today; userDiamonds = o.diamonds; videoPoints = 0;
+     } catch (e) {}
+   };
+   window.tdWPaint = function () {
+     var o = window.tdWGet();
+     var fmt = function (n) { return Number(n).toLocaleString('vi-VN'); };
+     var a = document.getElementById('todayPoints');
+     if (a) a.textContent = fmt(o.today);
+     var b = document.getElementById('profileWalletAmount');
+     var showCoin = true;
+     try { showCoin = (typeof walletMode === 'undefined' || walletMode === 'point'); } catch (e) { showCoin = true; }
+     if (b && showCoin) b.textContent = fmt(o.total);
+     var c = document.getElementById('totalEarn');
+     if (c) c.textContent = fmt(o.total);
+     var d = document.getElementById('lkChances');
+     if (d) d.textContent = o.tickets;
+     window.__tdPaintToday = fmt(o.today);
+     window.__tdPaintTotal = fmt(o.total);
+     return o;
+   };
+   /* total/today tu server: chi nhan so >= so may (chong server 0 ghi de).
+      today = null/undefined  -> GIU NGUYEN (dung khi tieu coin).
+      {force:true}            -> nhan ca so thap hon (sau doi the cao). */
+   window.tdWApply = function (total, today, diamonds, opts) {
+     var o = window.tdWGet(), force = !!(opts && opts.force);
+     var hasToday = (today !== undefined && today !== null && today !== '');
+     var T = Math.max(0, parseInt(total, 10) || 0);
+     var D = Math.max(0, parseInt(today, 10) || 0);
+     if (T >= o.total || force) o.total = T;
+     if (hasToday && (D >= o.today || force)) o.today = D;
+     if (typeof diamonds === 'number') {
+       var G = Math.max(0, parseInt(diamonds, 10) || 0);
+       if (G >= o.diamonds || force) o.diamonds = G;
+     }
+     window.tdWSet(o);
+     window.tdWPaint();
+     try { if (typeof window.updatePointsUI === 'function') window.updatePointsUI(); } catch (e) {}
+     return o.total;
+   };
+   window.tdWAdd = function (n) {         /* kiem duoc coin: CA 2 so cung tang */
+     var o = window.tdWGet(), v = Math.max(0, parseInt(n, 10) || 0);
+     o.total += v; o.today += v;
+     window.tdWSet(o); window.tdWPaint();
+     try { if (typeof window.updatePointsUI === 'function') window.updatePointsUI(); } catch (e) {}
+     return o;
+   };
+   window.tdWSpend = function (n) {       /* TIEU coin: CHI tru tong, today DUNG YEN */
+     var o = window.tdWGet(), v = Math.max(0, parseInt(n, 10) || 0);
+     o.total = Math.max(0, o.total - v);
+     window.tdWSet(o); window.tdWPaint();
+     try { if (typeof window.updatePointsUI === 'function') window.updatePointsUI(); } catch (e) {}
+     return o;
+   };
+   window.tdWTickets = function (n, mode) {
+     var o = window.tdWGet(), v = Math.max(0, parseInt(n, 10) || 0);
+     o.tickets = (mode === 'set') ? v : Math.max(o.tickets, v);
+     window.tdWSet(o);
+     window.__tickets = o.tickets;
+     var el = document.getElementById('lkChances'); if (el) el.textContent = o.tickets;
+     return o.tickets;
+   };
+   window.tdWSyncLocal = function (S) {  /* che do may (tdLocalRpc) day nguoc vao kho */
+     var o = window.tdWGet();
+     o.total   = Math.max(o.total,   parseInt(S.coins, 10)   || 0);
+     o.today   = Math.max(o.today,   parseInt(S.today, 10)   || 0);
+     o.tickets = Math.max(o.tickets, parseInt(S.tickets, 10) || 0);
+     window.tdWSet(o); window.tdWPaint();
+   };
+
   window.TD_RPC_MAP = {
     coin_state:             { path: 'tasks:coinState',           kind: 'query' },
     coin_task_claims_today: { path: 'tasks:coinTaskClaimsToday', kind: 'query' },
@@ -2049,18 +2191,29 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     try { S = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { S = null; }
     if (!S || typeof S !== 'object') S = {};
     if (S.day !== d) {
+      /* BAN 34: QUA 00:00 CHI reset 'today'. 'coins' (tong thu nhap) GIU NGUYEN. */
       S.day = d; S.today = 0; S.claimed = {}; S.tk = {};
       S.checkinDone = false; S.lastLoginDay = '';
     }
-    S.coins = tdNum(S.coins, 0);
-    S.today = tdNum(S.today, 0);
+    /* BAN 34: acc cu dang co 4000 coin khong bi kho may ghi ve 0 */
+    var W0 = window.tdWGet ? window.tdWGet() : null;
+    if (typeof S.coins !== 'number') S.coins = W0 ? W0.total : 0;
+    if (typeof S.today !== 'number') S.today = W0 ? W0.today : 0;
+    if (typeof S.tickets !== 'number') S.tickets = W0 ? W0.tickets : 0;
+    /* BAN 34: kho TDWallet la NGUON CHAN LY. Gan truc tiep (khong Math.max)
+       de sau khi TIEU coin (doi the) kho may khong day so cu tang lai. */
+    if (W0) { S.coins = W0.total; S.today = W0.today; S.tickets = W0.tickets; }
+    else { S.coins = tdNum(S.coins, 0); S.today = tdNum(S.today, 0); S.tickets = tdNum(S.tickets, 0); }
     S.diamonds = tdNum(S.diamonds, 0);
-    S.tickets = tdNum(S.tickets, 0);
     S.checkinStreak = tdNum(S.checkinStreak, 0);
     S.streak = tdNum(S.streak, 0);
     S.claimed = S.claimed || {};
     S.tk = S.tk || {};
-    function save() { try { localStorage.setItem(key, JSON.stringify(S)); } catch (e) {} }
+    function save() {
+      try { localStorage.setItem(key, JSON.stringify(S)); } catch (e) {}
+      /* BAN 34: cap nhat 2 so sach NGAY LAP TUC, ke ca dang che do may */
+      try { if (window.tdWSyncLocal) window.tdWSyncLocal(S); } catch (e) {}
+    }
     var out;
     switch (name) {
       case 'ping_login':
@@ -2224,13 +2377,10 @@ window.__serverToday = null;
 window.__serverDiamonds = null;
 window.__tdCoinGen = 0;
 function tdTotalCoins() {
+  /* BAN 34: LUON doc kho cua acc DANG dang nhap, khong doc bien chung */
+  if (window.tdWGet) return window.tdWGet().total;
   if (typeof window.__serverCoins === 'number') return window.__serverCoins;
-  try {
-    var v = parseInt(localStorage.getItem('userPoints'), 10) || 0;
-    v += parseInt(localStorage.getItem('videoPoints'), 10) || 0;
-    if (v > 0) return v;
-  } catch (e) {}
-  return 0;   /* BAN 30: acc moi = 0, khong con seed 4.774 cua acc khac */
+  return 0;
 }
 /* ===== 16/11 · CHỐT CÁCH VẼ (giống hệt "Thu nhập của tôi") =====
    - Chưa có số từ server: GIỮ SỐ CŨ (localStorage), không vẽ 3 chấm.
@@ -2252,10 +2402,11 @@ function tdNum(k, dflt) {
 }
 window.tdPaint = function () {
   try {
-    var t = (typeof window.__serverToday === 'number')
-      ? window.__serverToday : tdNum('todayPoints', 0);
-    var c = (typeof window.__serverCoins === 'number')
-      ? window.__serverCoins : tdNum('userPoints', 0);
+    var W = window.tdWGet ? window.tdWGet() : null;
+    var t = W ? W.today : ((typeof window.__serverToday === 'number')
+      ? window.__serverToday : tdNum('todayPoints', 0));
+    var c = W ? W.total : ((typeof window.__serverCoins === 'number')
+      ? window.__serverCoins : tdNum('userPoints', 0));
     var tpEl = document.getElementById('todayPoints');
     if (tpEl) {
       var txt = Number(t).toLocaleString('vi-VN');
@@ -2272,20 +2423,10 @@ window.tdPaint = function () {
   } catch (e) {}
 };
 function tdApplyCoin(total, today, diamonds) {
+  /* BAN 34: 1 cong vao 2 SO SACH rieng biet + ve UI ngay lap tuc */
+  if (window.tdWApply) return window.tdWApply(total, today, diamonds);
   var t = Math.max(0, parseInt(total, 10) || 0);
-  var d = Math.max(0, parseInt(today, 10) || 0);
-  window.__serverCoins = t;
-  window.__serverToday = d;
-  if (typeof diamonds === 'number') window.__serverDiamonds = Math.max(0, parseInt(diamonds, 10) || 0);
-  try {
-    localStorage.setItem('userPoints', String(t));
-    localStorage.setItem('todayPoints', String(d));
-    localStorage.setItem('videoPoints', '0');
-    localStorage.setItem('td_cache_valid', '1');
-  } catch (e) {}
-  try { userPoints = t; todayPoints = d; videoPoints = 0; } catch (e) {}
   try { if (typeof window.updatePointsUI === 'function') window.updatePointsUI(); } catch (e) {}
-  try { if (typeof window.tdPaint === 'function') window.tdPaint(); } catch (e) {}
   return t;
 }
 
@@ -2300,6 +2441,7 @@ function reconcileTodayState() {
     localStorage.setItem('todayPointsDate', stamp);
   }
   if (stamp !== today) {
+    /* BAN 34: CHI 'Coin hom nay' ve 0. 'Thu nhap cua toi' (userPoints) KHONG doi. */
     todayPoints = 0;
     diamondEarnedToday = 0;
     localStorage.setItem('todayPointsDate', today);
@@ -2309,6 +2451,7 @@ function reconcileTodayState() {
     todayPoints = parseInt(localStorage.getItem('todayPoints')) || 0;
     diamondEarnedToday = parseInt(localStorage.getItem('diamondEarnedToday')) || 0;
   }
+  try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {}
 }
 reconcileTodayState();
 
@@ -2382,7 +2525,7 @@ function openHistoryPopup() {
 function closeHistoryPopup() { document.getElementById('histPopup').classList.remove('show'); }
 function histSwitchTab() { /* giữ tên hàm để các chỗ gọi cũ không lỗi */ }
 
-const ZALO_ADMIN = '0965479975';
+const ZALO_ADMIN = 'tuidiemonline.cskh';   /* BAN 34: Messenger, bo Zalo */
 
 let userId = localStorage.getItem('userId') || '';
 let currentFirebaseUid = localStorage.getItem('firebaseUid') || '';
@@ -2434,19 +2577,25 @@ window._setLoadingTo100 = function () {};
 
 // ===== CHECKBOX ĐIỀU KHOẢN =====
 document.addEventListener("DOMContentLoaded", function() {
+    /* BAN 34: tick 1 LAN DAU, luu MAI. Tat web / dang xuat / doi acc van giu dau tick cam. */
+    const AGREE_KEY = 'td_policy_agreed_v1';
     const checkbox = document.getElementById('agreePolicy');
     const loginBtn = document.getElementById('googleLoginBtn');
-    if (checkbox && loginBtn) {
+    let agreed = false;
+    try { agreed = localStorage.getItem(AGREE_KEY) === '1'; } catch (e) {}
+    const enable = function (on) {
+        if (!loginBtn) return;
+        loginBtn.disabled = !on;
+        loginBtn.style.opacity = on ? '1' : '0.5';
+        loginBtn.style.cursor = on ? 'pointer' : 'not-allowed';
+    };
+    if (checkbox) {
+        if (agreed) checkbox.checked = true;
+        enable(checkbox.checked);
         checkbox.addEventListener('change', function() {
-            if (this.checked) {
-                loginBtn.disabled = false;
-                loginBtn.style.opacity = '1';
-                loginBtn.style.cursor = 'pointer';
-            } else {
-                loginBtn.disabled = true;
-                loginBtn.style.opacity = '0.5';
-                loginBtn.style.cursor = 'not-allowed';
-            }
+            if (this.checked) { try { localStorage.setItem(AGREE_KEY, '1'); } catch (e) {} }
+            if (agreed && !this.checked) this.checked = true;   /* da dong y -> giu mai */
+            enable(this.checked);
         });
     }
 });
@@ -2836,7 +2985,8 @@ function renderSettings() {
   const info = window.tdAccountInfo || {};
   const nameEl = document.getElementById('sName');
   // Biệt danh hiện ở cả tên lớn phía trên lẫn dòng "Biệt danh"
-  const nick = info.bietDanh || profile.nick || (u && u.displayName) || 'Người dùng';
+  /* BAN 34: uu tien biet danh USER VUA SUA (profile theo uid), roi moi toi server */
+  const nick = profile.nick || info.bietDanh || (u && u.displayName) || 'Người dùng';
   const mail = (u && u.email) || info.email || '—';
   // ID tài khoản = đúng User UID do Firebase Console cấp (bất biến, không ai sửa được)
   const uid = window.tdUid();
@@ -2849,7 +2999,9 @@ function renderSettings() {
   setText('stNickname', nick);
   setText('stUsername', info.tenDangNhap || profile.username || 'Chưa cập nhật');
   setText('stGmail', mail);
-  setText('stPhone', (info.dienThoai && info.dienThoai !== 'Chưa cập nhật') ? info.dienThoai : ((u && u.phoneNumber) || profile.phone || 'Chưa cập nhật'));
+  setText('stPhone', (profile.phone && profile.phone !== 'Chưa cập nhật') ? profile.phone
+    : ((info.dienThoai && info.dienThoai !== 'Chưa cập nhật') ? info.dienThoai
+    : ((u && u.phoneNumber) || 'Chưa cập nhật')));
   setText('stGender', profile.gender || 'Chưa cập nhật');
   setText('stBirth', profile.birth || 'Chưa cập nhật');
   const toggle = document.getElementById('stNotifyToggle');
@@ -3524,14 +3676,14 @@ function openZaloPopup() {
   const displayId = userId.replace('ID', '');
   document.getElementById('notifyIconWrap').className = 'notify-icon-wrap';
   document.getElementById('notifyIcon').innerHTML = '<i class="fas fa-comment-dots"></i>';
-  document.getElementById('notifySub').textContent = 'Copy ID và gửi cho admin qua Zalo';
+  document.getElementById('notifySub').textContent = 'Copy ID và gửi cho admin qua Messenger';
   document.getElementById('codeBox').style.display = 'block';
   document.getElementById('codeLabel').textContent = '📋 ID CỦA BẠN';
   document.getElementById('codeValue').textContent = displayId;
-  document.getElementById('notifyList').innerHTML = `<div style="padding:12px 4px;color:#94a3b8;font-size:12.5px;line-height:1.7;text-align:left;"><b style="color:#2dd4bf;">Các bước:</b><br>1. Tap vào ID để copy<br>2. Bấm <b>"Mở Zalo chat Admin"</b><br>3. Dán ID và gửi admin<br>4. Chờ admin gửi key</div>`;
+  document.getElementById('notifyList').innerHTML = `<div style="padding:12px 4px;color:#94a3b8;font-size:12.5px;line-height:1.7;text-align:left;"><b style="color:#2dd4bf;">Các bước:</b><br>1. Tap vào ID để copy<br>2. Bấm <b>"Mở Messenger chat Admin"</b><br>3. Dán ID và gửi admin<br>4. Chờ admin gửi key</div>`;
   const btn = document.getElementById('notifyBtn');
   btn.className = 'notify-btn';
-  btn.innerHTML = '<i class="fas fa-comment-dots"></i> Mở Zalo chat Admin';
+  btn.innerHTML = '<i class="fas fa-comment-dots"></i> Mở Messenger chat Admin';
   btn.onclick = goToZalo;
   const codeValueEl = document.getElementById('codeValue');
   codeValueEl.style.cursor = 'pointer';
@@ -3550,7 +3702,7 @@ function openZaloPopup() {
   document.getElementById('notifyOverlay').classList.add('show');
 }
 
-function goToZalo() { window.open(`https://zalo.me/${ZALO_ADMIN}`, '_blank'); closeNotify(); }
+function goToZalo() { window.open('https://m.me/tuidiemonline.cskh', '_blank'); closeNotify(); }
 
 function showPointHistory() {
   document.getElementById('notifyIconWrap').className = 'notify-icon-wrap';
@@ -3622,7 +3774,9 @@ async function redeem() {
       p_op: currentOp, p_op_name: (OP_NAMES[currentOp] || currentOp), p_denom: Number(currentDenom)
     });
     if (!r || !r.ok) { setMsg('❌ ' + ((r && r.msg) || 'Không đổi được thẻ'), '#f44336'); return; }
-    window.__serverCoins = r.coins;
+    /* BAN 34: chi tru TONG thu nhap, 'Coin hom nay' DUNG YEN */
+    if (window.tdWApply) window.tdWApply(r.coins, null, null, { force: true });
+    else window.__serverCoins = r.coins;
     try { if (typeof updatePointsUI === 'function') updatePointsUI(); } catch (e) {}
     setMsg('');
     /* BẢN 9: popup nền tối · chữ trắng · dấu X góc phải (bỏ chữ OK, bỏ viền) */
@@ -3699,6 +3853,8 @@ async function convertPointsToDiamond() {
     /* SERVER tự trừ coin + tự cộng kim cương. F12 sửa userDiamonds vô dụng. */
     var r = await rpc('exchange_diamonds', { p_points: points });
     if (!r || !r.ok) { alert((r && r.msg) || 'Đổi không thành công!'); return; }
+    /* BAN 34: tru ngay o may de server khong bi tu choi boi luat merge */
+    try { if (window.tdWSpend) window.tdWSpend(r.used || points); } catch (e) {}
     diamondHistory.unshift({ amount: r.amount, reason: `Đổi ${r.used} điểm`, time: getTimeStr() });
     diamondHistory = diamondHistory.slice(0, 30);
     saveLocalState();
@@ -7054,7 +7210,11 @@ body.week-ticket-open{ overflow:hidden !important; }
 .st-update-btn:active{ transform:scale(.985); }
 .st-account{ position:relative; }
 .st-account-badge,.st-mail,.st-foot{ display:none !important; }
-.st-row-value.st-mail-value{ max-width:66%; overflow:visible; text-overflow:clip; white-space:normal; word-break:break-all; line-height:1.35; }
+/* BAN 34: Gmail nam THANG 1 DONG, can phai, khong xuong dong */
+.st-row-value.st-mail-value{ max-width:72% !important; overflow:hidden !important;
+  text-overflow:ellipsis !important; white-space:nowrap !important;
+  word-break:normal !important; line-height:1.2 !important;
+  font-size:12px !important; letter-spacing:-.2px !important; text-align:right !important; }
 #stUserId{ font-size:11px !important; letter-spacing:0 !important;
   font-family:'Courier New',monospace !important;
   white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
@@ -7224,13 +7384,18 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
   'use strict';
 
   /* ---------- A. THÔNG TIN CÁ NHÂN ---------- */
-  var PE_KEY = 'tuidiem_profile_v1';
+  /* BAN 34: HO SO TACH THEO UID -> doi acc khong con biet danh cua acc kia */
+  function peKey() {
+    var u = ''; try { u = (window.tdUid && window.tdUid()) || ''; } catch (e) {}
+    return 'tdacc:' + (u || 'anon') + ':profile';
+  }
+  window.peKey = peKey;
   window.peLoad = function () {
-    try { return JSON.parse(localStorage.getItem(PE_KEY)) || {}; }
+    try { return JSON.parse(localStorage.getItem(peKey())) || {}; }
     catch (e) { return {}; }
   };
   window.peSaveLocal = function (o) {
-    try { localStorage.setItem(PE_KEY, JSON.stringify(o)); } catch (e) {}
+    try { localStorage.setItem(peKey(), JSON.stringify(o)); } catch (e) {}
   };
 
   function peUser() { return (window.fbAuth && window.fbAuth.currentUser) || null; }
@@ -7249,7 +7414,7 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     document.getElementById('peUsername').value = info.tenDangNhap || p.username || 'Chưa cập nhật';
     document.getElementById('peUid').value = peUid() || 'Đang tải...';
     document.getElementById('peMail').value = (u && u.email) || 'Chưa cập nhật';
-    document.getElementById('pePhone').value = (u && u.phoneNumber) || p.phone || '';
+    document.getElementById('pePhone').value = p.phone || (u && u.phoneNumber) || '';
     document.getElementById('peBirth').value = p.birth || '';
     var g = p.gender || 'Nam';
     Array.prototype.forEach.call(document.querySelectorAll('#peGender .pe-chip'), function (b) {
@@ -7314,6 +7479,7 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     var last = document.getElementById('peLast').value.trim();
     var birth = document.getElementById('peBirth').value.trim();
     var phone = document.getElementById('pePhone').value.trim();
+    if (phone === '+84' || phone === '+') phone = '';   /* BAN 34: chua nhap so */
     var genderBtn = document.querySelector('#peGender .pe-chip.active');
     var gender = genderBtn ? genderBtn.getAttribute('data-g') : 'Nam';
     var nick = last.trim();
@@ -7327,6 +7493,13 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     var p = window.peLoad();
     p.last = last; p.nick = nick; p.gender = gender; p.birth = birth; p.phone = phone;
     window.peSaveLocal(p);
+    /* BAN 34: cap nhat LUON ca thong tin tren RAM + goi lai renderSettings
+       -> thoat ra la thay doi ngay, khong con hien 'Quandeptrai' nua */
+    try {
+      window.tdAccountInfo = window.tdAccountInfo || {};
+      window.tdAccountInfo.bietDanh = nick;
+      window.tdAccountInfo.dienThoai = phone || 'Chưa cập nhật';
+    } catch (e) {}
 
     // Đồng bộ tên cạnh Avatar + dòng Biệt danh ngay lập tức
     var sName = document.getElementById('sName');
@@ -7348,7 +7521,10 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
       }
     } catch (e) {}
 
+    try { if (typeof renderSettings === 'function') renderSettings(); } catch (e) {}
+    try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {}
     window.peClosePage();
+    try { if (typeof renderSettings === 'function') renderSettings(); } catch (e) {}
     if (typeof window.showCopiedToast === 'function') window.showCopiedToast('Đã cập nhật thông tin');
   };
 
@@ -8690,6 +8866,7 @@ body.gm-playing .footer{ display:none !important; }
       try { localStorage.setItem('userDiamonds', String(window.__serverDiamonds)); } catch (e) {}
     }
     var out = (typeof _upUI === 'function') ? _upUI.apply(this, arguments) : undefined;
+    try { if (window.tdWSet) window.tdWSet(window.tdWGet()); } catch (e) {}
     /* CHỐT 2 SỐ TÁCH BẠCH — GIỮ NGUYÊN TÊN GIAO DIỆN, KHÔNG ĐỔI CHỮ:
        #todayPoints          = "Coin hôm nay"      (chỉ coin kiếm trong ngày)
        #profileWalletAmount  = "Thu nhập của tôi"  (TỔNG coin, giữ mãi)
@@ -8706,7 +8883,11 @@ body.gm-playing .footer{ display:none !important; }
     try {
       var r = await rpc('coin_state', {});
       /* Bỏ kết quả của lần gọi cũ nếu đã có lần gọi mới hơn */
-      if (r && r.ok && gen === window.__tdCoinGen) tdApplyCoin(r.coins, r.today, r.diamonds);
+      if (r && r.ok && gen === window.__tdCoinGen) {
+        /* BAN 34: server KHONG duoc gan 0 len so cua may (vd 4000 -> 10) */
+        tdApplyCoin(r.coins, r.today, r.diamonds);
+        if (typeof r.tickets === 'number' && window.tdWTickets) window.tdWTickets(r.tickets);
+      }
     } catch (e) {}
     try {
       var h = await rpc('today_stats', {});
@@ -8732,7 +8913,8 @@ body.gm-playing .footer{ display:none !important; }
         window.__tkState = r;
         window.__tkErr = '';
         window.__tkCheckinDone = !!r.checkin_done;
-        window.__tickets = parseInt(r.tickets, 10) || 0;
+        window.__tickets = window.tdWTickets
+          ? window.tdWTickets(r.tickets) : (parseInt(r.tickets, 10) || 0);
         var el = document.getElementById('lkChances');
         if (el) el.textContent = window.__tickets;
         renderTickets();
@@ -9199,9 +9381,8 @@ body.gm-playing .footer{ display:none !important; }
     var slot = document.getElementById('weekTicketSlot'); if (!slot) return;
     var r = window.__tkState;
     if (!r) {
-      var err = window.__tkErr ? String(window.__tkErr).slice(0, 80) + ' · ' : '';
-      slot.innerHTML = '<div class="td-tk-note">Đang lưu trên máy · tự đồng bộ khi server sẵn sàng</div>' +
-        '<div class="td-tk-note" style="margin-top:10px">' +
+      /* BAN 34: bo dong chu "Dang luu tren may..." theo yeu cau */
+      slot.innerHTML = '<div class="td-tk-note" style="margin-top:10px">' +
         '<button class="td-tk-btn" onclick="tdTicketRetry()">Thử lại</button></div>';
       if (!window.__tkRetryTimer) {
         window.__tkRetryTimer = setTimeout(function () {
@@ -9215,9 +9396,7 @@ body.gm-playing .footer{ display:none !important; }
     var loginReady = !!r.login_ready;
     var checkinReady = !!r.checkin_done;   /* server chốt · F12 sửa biến local vô dụng */
     var streakReady = !!r.streak_ready;
-    var offNote = (window.TD_NET_MODE === 'local')
-      ? '<div class="td-tk-note" style="margin-bottom:8px">Đang lưu trên máy · tự đồng bộ khi server sẵn sàng</div>'
-      : '';
+    var offNote = '';   /* BAN 34: bo dong chu "Dang luu tren may..." */
     var html = offNote +
       '<div class="td-tk-item">' +
         '<div class="td-tk-info"><div class="td-tk-name">Đăng nhập mỗi ngày</div>' +
@@ -9257,8 +9436,10 @@ body.gm-playing .footer{ display:none !important; }
     try {
       var r = await rpc('claim_ticket', { p_kind: kind });
       if (!r || !r.ok) { notice((r && r.msg) || 'Không thể nhận vé'); return; }
-      window.__tickets = r.tickets;
-      var el = document.getElementById('lkChances'); if (el) el.textContent = r.tickets;
+      /* BAN 34: +3 ve hien NGAY trong vong quay, khong cho server 0 ghi de */
+      if (window.tdWTickets) window.tdWTickets(r.tickets);
+      window.__tickets = window.tdWGet ? window.tdWGet().tickets : r.tickets;
+      var el = document.getElementById('lkChances'); if (el) el.textContent = window.__tickets;
       window.tdShowTicketModal(r.amount);
       await syncTickets();
     } catch (e) { connNotice(e); }
@@ -9327,7 +9508,8 @@ body.gm-playing .footer{ display:none !important; }
         if (idx < slots.length) setTimeout(runOnce, 380);
         else {
           window.__spinning = false; if (btn) btn.disabled = false;
-          window.__tickets = r.tickets;
+          if (window.tdWTickets) window.tdWTickets(r.tickets, 'set');  /* quay -> tru ve */
+          window.__tickets = window.tdWGet ? window.tdWGet().tickets : r.tickets;
           tdApplyCoin(r.coins, (typeof r.today === 'number' ? r.today : window.__serverToday));
           var cEl = document.getElementById('lkChances'); if (cEl) cEl.textContent = r.tickets;
           try { window.updatePointsUI(); } catch (e) {}
@@ -9832,12 +10014,15 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
       info.uid = user.uid;
       info.tenDangNhap = r.username || info.tenDangNhap || '';
       info.bietDanh = r.nickname || info.bietDanh || '';
+      /* BAN 34: neu da co nick local (user vua sua) thi uu tien no */
+      try { var _p = window.peLoad ? window.peLoad() : {}; if (_p.nick) info.bietDanh = _p.nick; } catch (e) {}
       info.email = r.email || user.email || info.email || '';
       info.dienThoai = r.phone || info.dienThoai || '';
       window.tdAccountInfo = info;
       try {
         var p = window.peLoad ? window.peLoad() : {};
-        if (r.nickname) { p.nick = r.nickname; p.last = r.nickname; }
+        /* BAN 34: KHONG de nick cu tren server ghi de len nick user vua doi */
+        if (r.nickname && !p.nick) { p.nick = r.nickname; p.last = r.nickname; }
         p.username = r.username;
         if (window.peSaveLocal) window.peSaveLocal(p);
       } catch (e) {}
@@ -9878,7 +10063,9 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
     var uEl = document.getElementById('tdLoginUser'), pEl = document.getElementById('tdLoginPass');
     var cb = document.getElementById('agreePolicy');
     var user = uEl ? uEl.value.trim() : '', pass = pEl ? pEl.value : '';
-    if (cb && !cb.checked) { window.tdToast('Tick đồng ý Điều khoản & Chính sách bảo mật trước nhé'); return; }
+    var _agreed = false;
+    try { _agreed = localStorage.getItem('td_policy_agreed_v1') === '1'; } catch (e) {}
+    if (!_agreed && cb && !cb.checked) { window.tdToast('Tick đồng ý Điều khoản & Chính sách bảo mật trước nhé'); return; }
     if (!user || !pass) {
       var g = document.getElementById('googleLoginBtn');
       if (g && !g.disabled) { g.click(); return; }
@@ -9914,7 +10101,10 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
   window.tdGoogleFromRegister = function () {
     window.tdRegJustDone = false;
     var cb = document.getElementById('agreePolicy');
-    if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    if (cb && !cb.checked) {
+      cb.checked = true; cb.dispatchEvent(new Event('change'));
+      try { localStorage.setItem('td_policy_agreed_v1', '1'); } catch (e) {}
+    }
     window.tdCloseRegister();
     var g = document.getElementById('googleLoginBtn');
     if (g && !g.disabled) g.click();
@@ -9929,7 +10119,9 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
     var gv = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
     var name = gv('tdRegUser');
     var mail = gv('tdRegMail').toLowerCase(), nick = gv('tdRegNick');
-    var phone = gv('tdRegPhone'), pass = document.getElementById('tdRegPass') ? document.getElementById('tdRegPass').value : '';
+    var phone = gv('tdRegPhone');
+    if (phone === '+84' || phone === '+') phone = '';   /* BAN 34: chua nhap so */
+    var pass = document.getElementById('tdRegPass') ? document.getElementById('tdRegPass').value : '';
     var pass2 = gv('tdRegPass2');
     /* BẢN 10 · BẮT BUỘC hết trừ SĐT. Thiếu 1 ô -> KHÔNG đăng ký được. */
     if (!name) { window.tdToast('Nhập tên đăng nhập trước nhé'); return; }
@@ -10018,6 +10210,7 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
       var lp = document.getElementById('tdLoginPass'); if (lp) lp.value = '';
       var cb = document.getElementById('agreePolicy');
       if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      try { localStorage.setItem('td_policy_agreed_v1', '1'); } catch (e) {}
       window.tdToast('Đăng ký thành công! Bấm đăng nhập để vào web ngay nhé');
       setTimeout(function () { window.tdRegJustDone = false; }, 4000);
     } catch (err) {
@@ -11535,9 +11728,11 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
  .td-otp-hint{ margin-top:6px !important; }
 /* BẢN 23 · đã bỏ ô dán link server (link nằm trong otp-config.js) */
 /* Gmail trong Cài đặt: hiện đủ, xuống dòng thay vì cụt "support.tuidiemonl..." */
-.st-row-value.st-mail-value{ max-width:66% !important; overflow:visible !important;
-  text-overflow:clip !important; white-space:normal !important; word-break:break-all !important;
-  text-align:right !important; line-height:1.35 !important; }
+/* BAN 34 (chot cuoi): Gmail 1 dong, thang hang, khong bi cat dong */
+.st-row-value.st-mail-value{ max-width:72% !important; overflow:hidden !important;
+  text-overflow:ellipsis !important; white-space:nowrap !important;
+  word-break:normal !important; text-align:right !important;
+  line-height:1.2 !important; font-size:12px !important; letter-spacing:-.2px !important; }
 /* Chữ "Đổi mật khẩu" = TRẮNG (cả Cài đặt lẫn trang cá nhân) */
 #btn-change-password .st-row-label{ color:#ffffff !important; font-weight:700 !important; }
 #pe-change-password .pe-label{ color:#ffffff !important; }
@@ -11772,6 +11967,123 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
         if (last !== null && last !== id) clearCache();
         if (!id) clearCache(); else window.__tdUid = id;
         last = id;
+      });
+    }
+  } catch (e) {}
+})();
+</script>
+
+
+<!-- ==================================================================
+     BAN 34 · CSS + JS CHOT CUOI (dat sau cung de thang moi rule cu)
+     ================================================================== -->
+<style id="td-ban34-css">
+/* 1. Nut quay lai trang DANG KY: khung DEN, mui ten TRANG, KHONG vien xanh */
+#registerScreen .td-auth{ position:relative !important; }
+#registerScreen .td-reg-back{
+  position:absolute !important; top:14px !important; left:0 !important; z-index:30 !important;
+  width:44px !important; height:44px !important; padding:0 !important; margin:0 !important;
+  display:flex !important; align-items:center !important; justify-content:center !important;
+  background:#000000 !important; color:#ffffff !important;
+  border:1px solid #242424 !important; border-radius:14px !important;
+  box-shadow:none !important; outline:0 !important; cursor:pointer !important;
+  font-family:'Poppins',sans-serif !important; font-size:22px !important;
+  font-weight:700 !important; line-height:1 !important;
+  -webkit-tap-highlight-color:transparent !important;
+}
+#registerScreen .td-reg-back:active{ background:#111111 !important; }
+#registerScreen .td-auth-brand{ margin:62px 0 24px !important; }
+/* 2. Gmail Cai dat: 1 dong, thang hang */
+#stGmail.st-mail-value{ white-space:nowrap !important; overflow:hidden !important;
+  text-overflow:ellipsis !important; word-break:normal !important;
+  max-width:74% !important; font-size:12px !important; letter-spacing:-.2px !important;
+  text-align:right !important; line-height:1.2 !important; }
+/* 3. Prefix +84 trong o dien thoai */
+.pe-phone-wrap{ position:relative; flex:1; display:flex; align-items:center; justify-content:flex-end; min-width:0; }
+.pe-phone-wrap .pe-input{ padding-right:0 !important; }
+.td-auth-field.td-phone-wrap input{ padding-left:52px !important; }
+.td-phone-prefix{
+  position:absolute !important; left:16px !important; top:50% !important;
+  transform:translateY(-50%) !important; color:#ffffff !important;
+  font-size:15px !important; font-weight:700 !important; pointer-events:none !important;
+  z-index:2 !important; font-family:'Poppins',sans-serif !important;
+}
+</style>
+<script>
+(function () {
+  'use strict';
+  /* ---------- A. NGAY SINH: go 22 -> "22/" -> 22/12/ -> 22/12/2004 ---------- */
+  function bindBirth() {
+    var el = document.getElementById('peBirth');
+    if (!el || el.__td34) return;
+    el.__td34 = 1;
+    el.addEventListener('input', function (e) {
+      var del = !!(e && e.inputType && String(e.inputType).indexOf('delete') >= 0);
+      var v = String(el.value || '').replace(/\D/g, '').slice(0, 8);
+      var out = '';
+      if (v.length) out = v.slice(0, 2);
+      if (v.length > 2) out += '/' + v.slice(2, 4);
+      else if (!del && v.length === 2) out += '/';
+      if (v.length > 4) out += '/' + v.slice(4, 8);
+      else if (!del && v.length === 4) out += '/';
+      el.value = out;
+    });
+  }
+  /* ---------- B. SO DIEN THOAI: +84 co dinh, user KHONG can go so 0 ---------- */
+  function normPhone(el) {
+    if (!el) return;
+    var d = String(el.value || '').replace(/\D/g, '');
+    if (d.indexOf('84') === 0) d = d.slice(2);      /* go nham +84 */
+    if (d.charAt(0) === '0') d = d.slice(1);        /* bo so 0 dau */
+    d = d.slice(0, 12);
+    el.value = '+84' + d;
+  }
+  function bindPhone(el) {
+    if (!el || el.__td34) return;
+    el.__td34 = 1;
+    el.setAttribute('maxlength', '15');
+    el.setAttribute('inputmode', 'numeric');
+    if (!String(el.value || '').trim()) el.value = '+84';
+    else normPhone(el);
+    el.addEventListener('focus', function () { if (!String(el.value || '').trim()) el.value = '+84'; });
+    el.addEventListener('input', function () { normPhone(el); });
+    el.addEventListener('blur', function () { if (el.value === '+84') el.value = ''; });
+  }
+  function boot() {
+    try { bindBirth(); } catch (e) {}
+    try {
+      bindPhone(document.getElementById('pePhone'));
+      bindPhone(document.getElementById('tdRegPhone'));
+    } catch (e) {}
+    /* Dang ky: dat prefix +84 nhin thay trong o (neu co icon dien thoai) */
+    try {
+      var reg = document.getElementById('tdRegPhone');
+      if (reg && reg.parentElement && !document.getElementById('tdRegPhonePrefix')) {
+        reg.parentElement.classList.add('td-phone-wrap');
+        var s = document.createElement('span');
+        s.id = 'tdRegPhonePrefix'; s.className = 'td-phone-prefix'; s.textContent = '+84';
+        reg.parentElement.insertBefore(s, reg);
+      }
+    } catch (e) {}
+    /* Cap nhat 2 so sach ngay khung hinh dau tien */
+    try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {}
+    /* Dau tick dieu khoan: neu da luu thi luon giu (phong render lai) */
+    try {
+      if (localStorage.getItem('td_policy_agreed_v1') === '1') {
+        var cb = document.getElementById('agreePolicy'), g = document.getElementById('googleLoginBtn');
+        if (cb) { cb.checked = true; }
+        if (g) { g.disabled = false; g.style.opacity = '1'; g.style.cursor = 'pointer'; }
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  setTimeout(boot, 800);   /* phong element du tao boi script khac */
+  /* Moi khi doi acc: nap lai dung kho cua acc do */
+  try {
+    if (window.fbAuth && window.fbOnAuthStateChanged) {
+      window.fbOnAuthStateChanged(window.fbAuth, function () {
+        setTimeout(function () { try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {} }, 60);
       });
     }
   } catch (e) {}
