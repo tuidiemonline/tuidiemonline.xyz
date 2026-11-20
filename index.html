@@ -818,8 +818,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <div class="td-auth-field td-otp-field">
           <input id="tdRegOtpCode" type="text" inputmode="numeric" maxlength="6" placeholder="nhập mã" autocomplete="one-time-code">
         </div>
-        <!-- BAN 37 · khung den sieu nho: loading xoay -> tich xanh that su -->
-        <div class="td-otp-status" id="tdRegOtpStatus" role="status" aria-live="polite" aria-label="Trạng thái xác thực Gmail"></div>
+        <!-- BAN 38 · BỎ khung đen: loading / tích xanh nay nằm NGAY TRONG nút -->
         <button type="button" class="td-otp-send" id="tdRegOtpSend" onclick="tdRegOtpSend()">Gửi mã</button>
         <button type="button" class="td-otp-ok" id="tdRegOtpOk" onclick="tdRegOtpVerify()">Xác thực</button>
       </div>
@@ -7573,6 +7572,19 @@ body.gm-playing #bottomNav,body.gm-playing .app-header,body.gm-playing .footer{ 
     var p = window.peLoad();
     p.last = last; p.nick = nick; p.gender = gender; p.birth = birth; p.phone = phone;
     window.peSaveLocal(p);
+    /* BAN 38 · Sửa tên mới trong Tài khoản -> vẫn đăng nhập được bằng tên đó.
+       Mật khẩu do Firebase giữ; đổi qua "Quên mật khẩu" có xác nhận thành công. */
+    try {
+      var _u = window.fbAuth && window.fbAuth.currentUser;
+      var _mail = (_u && _u.email) || p.mail ||
+                  (window.tdAccountInfo && window.tdAccountInfo.email) || '';
+      if (_mail) {
+        p.mail = String(_mail).toLowerCase();
+        window.peSaveLocal(p);
+        localStorage.setItem('td_user_' + String(nick).toLowerCase(), p.mail);
+        if (p.username) localStorage.setItem('td_user_' + String(p.username).toLowerCase(), p.mail);
+      }
+    } catch (e) {}
     /* BAN 34: cap nhat LUON ca thong tin tren RAM + goi lai renderSettings
        -> thoat ra la thay doi ngay, khong con hien 'Quandeptrai' nua */
     try {
@@ -10263,6 +10275,16 @@ body.in-game #gameContainer canvas{ position:relative !important; display:block 
         catch (e) { if (_ri === 1) console.warn('register_profile:', e); }
       }
       try { localStorage.setItem('td_user_' + name.toLowerCase(), mail); } catch (e) {}
+      /* BAN 38 · Gmail đã xác thực tích xanh -> lưu luôn vào phần Tài khoản.
+         Cho đăng nhập bằng Tên đăng nhập HOẶC Biệt danh (sẽ sửa sau) HOẶC Gmail. */
+      try {
+        localStorage.setItem('td_user_' + nick.toLowerCase(), mail);
+        localStorage.setItem('td_verified_mail', mail);
+        var _p = window.peLoad ? window.peLoad() : {};
+        _p.nick = nick; _p.last = nick; _p.username = name;
+        _p.mail = mail; _p.verified = true; _p.phone = phone || '';
+        if (window.peSaveLocal) window.peSaveLocal(_p);
+      } catch (e) {}
 
       // Lưu local để Cài đặt hiện ngay: tên lớn trên cùng = Biệt danh
       try {
@@ -11984,11 +12006,12 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     /* OTP: có link server -> BẮT BUỘC xác thực mới cho tạo tài khoản */
     if (serverReady()) {
       if (!st.ok || st.mail !== mail) {
-        toast('Bấm "Gửi mã OTP" → nhập mã → bấm "Xác thực" (hiện tích xanh ) rồi mới đăng ký được nhé');
+        toast('Đăng ký thất bại! Bấm "Gửi mã" → nhập mã → "Xác thực" (hiện tích xanh) rồi mới tạo được tài khoản.');
         return;
       }
     } else {
-      hint('⚠ Chưa có link server → tạm cho đăng ký.', 'warn');
+      toast('Đăng ký thất bại! Chưa có server OTP nên chưa xác thực được Gmail.');
+      return;
     }
     return origRegister ? origRegister.apply(this, arguments) : undefined;
   };
@@ -12328,6 +12351,211 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       window.fbOnAuthStateChanged(window.fbAuth, function () {
         setTimeout(function () { try { if (window.tdWPaint) window.tdWPaint(); } catch (e) {} }, 60);
       });
+    }
+  } catch (e) {}
+})();
+</script>
+
+
+<!-- ==================================================================
+     BAN 38 · CHOT CUOI (dat sau cung de thang moi rule cu)
+     - Bo khung den status; loading xoay -> tich xanh nam TRONG nut
+     - O nhap 6 so keo sat toi so cuoi; khung bao quat fit-content
+     - +84 sat so (vd +845...) · mau dong bo Gmail / ID
+     - Dang ky: thieu 1 o (tru SDT) hoac chua tich xanh = THAT BAI
+     - Dang nhap: ten dang ky / ten moi trong Tai khoan / Gmail da xac thuc
+     ================================================================== -->
+<style id="td-ban38-css">
+/* 1. XOA sach khung den thua (ke ca ban cu con sot lai) */
+.td-otp-status, #tdRegOtpStatus{ display:none !important; }
+/* 2. Khung bao quat hang OTP tu co lai, khong du khuc ben phai */
+.td-reg-otp{ width:fit-content !important; max-width:100% !important; }
+.td-otp-oneline{ width:fit-content !important; max-width:100% !important;
+  gap:4px !important; margin:0 !important; }
+/* 3. O 6 so sat toi so 5 (vd 278095) */
+.td-otp-oneline .td-auth-field.td-otp-field{
+  flex:0 0 auto !important; width:64px !important; min-width:0 !important;
+  padding:0 6px !important; box-sizing:border-box !important; }
+.td-otp-oneline .td-auth-field.td-otp-field input{
+  width:100% !important; padding:8px 0 !important;
+  font-size:12px !important; letter-spacing:.5px !important; text-align:left !important; }
+/* 4. Popup Quen mat khau: y chang */
+.td-fg-oneline{ width:fit-content !important; max-width:100% !important;
+  gap:5px !important; margin:0 !important; }
+.td-fg-oneline .td-fg-otp-field{
+  flex:0 0 auto !important; width:64px !important; min-width:0 !important;
+  padding:0 6px !important; box-sizing:border-box !important; margin:0 !important; }
+.td-fg-oneline .td-fg-otp-field input{
+  width:100% !important; padding:8px 0 !important;
+  font-size:12px !important; letter-spacing:.5px !important; }
+.td-fg-oneline .td-fg-btn{ min-height:32px !important; }
+/* 5. +84 sat ngay so, khung khong con gap */
+.td-auth-field.td-phone-wrap{ gap:0 !important; }
+.td-auth-field.td-phone-wrap .td-phone-prefix{ margin-right:0 !important; }
+.td-auth-field.td-phone-wrap input{ padding-left:1px !important; }
+#pe-row-phone{ gap:0 !important; }
+/* 6. Hieu ung SIEU NHO nam trong nut */
+.td-otp-oneline button, .td-fg-oneline button{ min-height:32px !important; }
+.td-btn-spin{ display:inline-block !important; width:13px !important; height:13px !important;
+  box-sizing:border-box !important; border:2px solid rgba(255,255,255,.25) !important;
+  border-top-color:#ffffff !important; border-radius:50% !important; vertical-align:middle !important;
+  animation:tdOtpSpin .65s linear infinite !important; }
+.td-btn-check{ display:inline-block !important; width:16px !important; height:16px !important;
+  object-fit:contain !important; vertical-align:middle !important;
+  opacity:0 !important; transform:scale(.35) !important;
+  transition:opacity .22s ease, transform .34s cubic-bezier(.34,1.56,.64,1) !important; }
+.td-btn-check.show{ opacity:1 !important; transform:scale(1) !important; }
+.td-btn-fail{ color:#fb7185 !important; font-size:15px !important; font-weight:800 !important; }
+</style>
+<script>
+(function () {
+  'use strict';
+  var IMG = 'https://i.postimg.cc/WbwjcjdJ/file-00000000b4088209bd6e3038118db33c.png';
+  function $(id) { return document.getElementById(id); }
+  function toast(t) { if (window.tdToast) window.tdToast(t); else alert(t); }
+  function spin(b) { if (!b) return; b.disabled = true; b.innerHTML = '<span class="td-btn-spin"></span>'; }
+  function tick(b) {
+    if (!b) return;
+    b.innerHTML = '<img class="td-btn-check" src="' + IMG + '" alt="Đã xác thực">';
+    var im = b.querySelector('.td-btn-check');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { if (im) im.classList.add('show'); });
+    });
+  }
+  function fail(b, label) {
+    if (!b) return;
+    b.innerHTML = '<span class="td-btn-fail">\u00d7</span>';
+    setTimeout(function () {
+      if (b && b.innerHTML.indexOf('td-btn-fail') >= 0) { b.textContent = label; b.disabled = false; }
+    }, 1600);
+  }
+  function restore(b, label, dis) { if (!b) return; b.textContent = label; b.disabled = !!dis; }
+
+  /* A. tdOtpStatus cu tro vao khung den -> gio tro vao NUT "Xac thuc".
+     st.ok trong code cu van duoc set -> validate dang ky khong bi gay. */
+  window.tdOtpStatus = function (mode) {
+    var b = $('tdRegOtpOk'); if (!b) return;
+    if (mode === 'loading') spin(b);
+    else if (mode === 'ok') { tick(b); b.disabled = true; }
+    else if (mode === 'fail') fail(b, 'Xác thực');
+    else restore(b, 'Xác thực', false);
+  };
+
+  /* B. Dat spinner NGAY TRONG luc goi server (sau khi code cu da reset chu),
+     va ghi lai ket qua de biet luc nao hien tich xanh. */
+  var _req = window.tdOtpRequest;
+  if (_req) {
+    window.tdOtpRequest = async function () {
+      var ab = window.__tdOtpActiveBtn;
+      if (ab) spin(ab);
+      var r;
+      try { r = await _req.apply(this, arguments); } catch (e) { r = false; }
+      window.__tdOtpLastSent = !!r;
+      window.__tdOtpActiveBtn = null;
+      return r;
+    };
+  }
+  var _ver = window.tdOtpVerify;
+  if (_ver) {
+    window.tdOtpVerify = async function () {
+      var ab = window.__tdOtpActiveBtn;
+      if (ab) spin(ab);
+      var r;
+      try { r = await _ver.apply(this, arguments); } catch (e) { r = false; }
+      window.__tdOtpActiveBtn = null;
+      return r;
+    };
+  }
+
+  /* C. Gửi mã (Đăng ký): loading -> tích xanh -> countdown tự viết lại chữ */
+  var _send = window.tdRegOtpSend;
+  if (_send) {
+    window.tdRegOtpSend = async function () {
+      var b = $('tdRegOtpSend');
+      window.__tdOtpLastSent = false;
+      window.__tdOtpActiveBtn = b;
+      spin(b);
+      try { await _send.apply(this, arguments); }
+      catch (e) { restore(b, 'Gửi mã', false); return; }
+      if (window.__tdOtpLastSent) tick(b);      /* 1s sau countdown(60) tu接管 */
+      else restore(b, 'Gửi mã', false);
+    };
+  }
+
+  /* D. Quên mật khẩu: cả 2 nút cũng loading -> tích xanh */
+  var _fgSend = window.tdForgotSend, _fgVerify = window.tdForgotVerify;
+  if (_fgSend) {
+    window.tdForgotSend = async function () {
+      var b = $('tdFgSendBtn');
+      window.__tdOtpLastSent = false;
+      window.__tdOtpActiveBtn = b;
+      spin(b);
+      try { await _fgSend.apply(this, arguments); }
+      catch (e) { restore(b, 'Gửi mã', false); return; }
+      if (window.__tdOtpLastSent) tick(b); else restore(b, 'Gửi mã', false);
+    };
+  }
+  if (_fgVerify) {
+    window.tdForgotVerify = async function () {
+      var b = $('tdFgVerifyBtn');
+      window.__tdOtpActiveBtn = b;
+      spin(b);
+      try { await _fgVerify.apply(this, arguments); }
+      catch (e) { restore(b, 'Xác thực', false); return; }
+      var t = $('tdFgTick');
+      if (t && t.style.display && t.style.display !== 'none') tick(b);
+      else restore(b, 'Xác thực', false);
+    };
+  }
+
+  /* E. ĐĂNG KÝ: chỉ SĐT được trống. Thiếu ô / chưa tích xanh = THẤT BẠI. */
+  var _reg = window.tdRegisterContinue;
+  if (_reg) {
+    window.tdRegisterContinue = async function () {
+      var g = function (id) { var e = $(id); return e ? e.value.trim() : ''; };
+      var miss = [];
+      if (!g('tdRegUser')) miss.push('Tên đăng nhập');
+      if (!g('tdRegMail')) miss.push('Gmail');
+      if (!g('tdRegNick')) miss.push('Biệt danh');
+      if (!g('tdRegPass')) miss.push('Mật khẩu');
+      if (!g('tdRegPass2')) miss.push('Nhập lại mật khẩu');
+      if (miss.length) {
+        toast('Đăng ký thất bại! Thiếu: ' + miss.join(', ') + '. Chỉ số điện thoại được bỏ trống.');
+        return;
+      }
+      if (g('tdRegPass') !== g('tdRegPass2')) {
+        toast('Đăng ký thất bại! Mật khẩu nhập lại không khớp.'); return;
+      }
+      var okb = $('tdRegOtpOk');
+      var verified = !!(okb && okb.querySelector('.td-btn-check'));
+      if (!verified) {
+        toast('Đăng ký thất bại! Phải xác thực Gmail (hiện tích xanh) trước khi tạo tài khoản.');
+        return;
+      }
+      var mail = g('tdRegMail').toLowerCase();
+      try { localStorage.setItem('td_verified_mail', mail); } catch (e) {}
+      var r = await _reg.apply(this, arguments);
+      /* Sau khi tạo acc: hồ sơ + index đăng nhập bằng tên mới */
+      try {
+        var nick = g('tdRegNick'), name = g('tdRegUser');
+        var p = window.peLoad ? window.peLoad() : {};
+        p.nick = nick; p.last = nick; p.username = name;
+        p.mail = mail; p.verified = true;
+        p.phone = window.tdPhoneFull ? window.tdPhoneFull(g('tdRegPhone')) : '';
+        if (window.peSaveLocal) window.peSaveLocal(p);
+        localStorage.setItem('td_user_' + name.toLowerCase(), mail);
+        localStorage.setItem('td_user_' + nick.toLowerCase(), mail);
+      } catch (e) {}
+      return r;
+    };
+  }
+
+  /* F. Tick điều khoản 1 lần: giữ mãi dù render lại / đổi acc */
+  try {
+    if (localStorage.getItem('td_policy_agreed_v1') === '1') {
+      var cb = $('agreePolicy'), gb = $('googleLoginBtn');
+      if (cb) cb.checked = true;
+      if (gb) { gb.disabled = false; gb.style.opacity = '1'; gb.style.cursor = 'pointer'; }
     }
   } catch (e) {}
 })();

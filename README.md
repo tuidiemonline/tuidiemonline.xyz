@@ -1,4 +1,4 @@
-# TÚI ĐIỂM ONLINE · BẢN 37 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
+# TÚI ĐIỂM ONLINE · BẢN 38 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
 
 File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
@@ -6,16 +6,30 @@ File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuid
 > Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
 > toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
-## 🆕 BẢN 37 · khung trạng thái OTP + `+84` sát số
+## 🆕 BẢN 38 · bỏ khung đen, gom OTP, chốt đăng ký / đăng nhập
 
-1. **Ô nhập mã thu gọn**: còn đúng `80px` (vừa 6 số), không còn kéo dài hết hàng.
-   Ngay cạnh ô là **khung đen 22px** (`#tdRegOtpStatus`).
-2. **Bấm "Xác thực"**: khung hiện **vòng xoay trắng** → gọi thật
-   `window.tdOtpVerify()` (Render `/api/verify-otp`, mã 6 số do server sinh) →
-   đúng mã hiện **tích xanh** từ ảnh bạn gửi, nảy nhẹ
-   `cubic-bezier(.34,1.56,.64,1)`; sai mã hiện dấu `×` đỏ 1.6s rồi xoá.
-   Tích xanh **giữ lại** đến khi đổi Gmail / bấm Gửi mã lại → user luôn biết
-   mình đã xác thực Gmail chưa. Không còn đổi chữ nút thành "⏳ Đang kiểm tra".
+1. **Bỏ hẳn khung đen** `#tdRegOtpStatus`. Loading xoay + tích xanh giờ nằm
+   **ngay trong nút** "Gửi mã" / "Xác thực" (cả Đăng ký lẫn popup Quên mật khẩu).
+   Vẫn gọi thật `tdOtpRequest()` / `tdOtpVerify()` (Render + Brevo, mã do server sinh),
+   tích xanh lấy từ ảnh bạn gửi, nảy nhẹ `cubic-bezier(.34,1.56,.64,1)`,
+   sai mã hiện `×` đỏ 1.6s. Tích **giữ lại** đến khi đổi Gmail / gửi lại mã.
+2. **Ô 6 số kéo sát tới số cuối** (`278095`): `64px`, `letter-spacing:.5px`.
+   Khung bao quát `.td-reg-otp` và `.td-fg-oneline` đổi `width:fit-content`
+   → hết dư khúc bên phải. Áp dụng cả popup Quên mật khẩu.
+3. **`+84` dính số** (`+845...`): `gap:0`, `padding-left:1px`, màu `#8b8b8b` /
+   `#94a3b8` đúng Gmail · ID · Tên đăng nhập. Con trỏ vẫn đứng ngay sau số 4,
+   không xoá được `+84`, không nháy số 8.
+4. **Đăng ký**: chỉ **SĐT** được bỏ trống. Thiếu Tên đăng nhập / Gmail / Biệt danh /
+   Mật khẩu / Nhập lại mật khẩu, mật khẩu không khớp, hoặc **chưa hiện tích xanh**
+   → `Đăng ký thất bại!` (kể cả lúc server OTP chưa sống, không còn "tạm cho đăng ký").
+5. **Xác thực Gmail xong → lưu thẳng vào Tài khoản**: Biệt danh, Gmail đã xác thực,
+   SĐT (`+84 Chưa cập nhật` nếu bỏ trống), ID do Firebase cấp. Thoát ra là thấy ngay.
+6. **Đăng nhập** chấp nhận: tên đăng nhập đã đăng ký **hoặc** tên mới vừa sửa trong
+   Tài khoản **hoặc** Gmail đã xác thực tích xanh — với mật khẩu đã đăng ký hoặc
+   mật khẩu mới đã đổi qua "Quên mật khẩu" (có thông báo xác nhận thành công).
+   `peSave()` ghi thêm `td_user_<biệt danh>` để tên mới cũng resolve được email.
+
+> BẢN 37 cũ (giữ lại dưới dạng lịch sử): ô `80px` + khung đen 22px cạnh ô nhập.
 3. **`+84` sát số thật sự** (`+845...`): bỏ hẳn `position:absolute` +
    `padding-left:90px`. Khung giờ là wrapper `flex`, thứ tự
    `icon → +84 → 3px → số`. Cả **Đăng ký** lẫn **Thông tin cá nhân** đều gom
@@ -154,7 +168,15 @@ cd ~/tuidiemonline_termux && F=$(find ~ /sdcard/Download -type f \( -name 'tuidi
 - Bấm **Liên hệ hỗ trợ** → mở `m.me/tuidiemonline.cskh`.
 - Console (nếu cần): `tdDiag()` · `TD_NET_MODE` · `TD_LAST_CONVEX_ERROR`.
 
-## 6. Nhắc quan trọng
+## 6. Test riêng trước khi lên web chính
+
+Có thể: copy nguyên thư mục này sang `test/`, deploy lên **Convex project MỚI**
+và **Render OTP service MỚI**, host ở branch `test` / GitHub Pages riêng, test ổn
+rồi mới gộp vào `main`. ⚠️ **Không copy nguyên** `TD_CONVEX_URL` + `TD_OTP_DEFAULT`
+từ bản chính sang bản test: chung Convex = dữ liệu test ghi thẳng vào database thật,
+chung Render OTP = log / rate limit / OTP thật bị lẫn. Mỗi môi trường 1 project riêng.
+
+## 7. Nhắc quan trọng
 
 1. 🔐 Không dán `BREVO_API_KEY` vào file nào; key chỉ nằm ở Render → Environment.
 2. ⏰ UptimeRobot ping `/health` 5 phút để Render không ngủ (`PING.md`).
