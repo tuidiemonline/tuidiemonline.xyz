@@ -818,6 +818,8 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <div class="td-auth-field td-otp-field">
           <input id="tdRegOtpCode" type="text" inputmode="numeric" maxlength="6" placeholder="nhập mã" autocomplete="one-time-code">
         </div>
+        <!-- BAN 37 · khung den sieu nho: loading xoay -> tich xanh that su -->
+        <div class="td-otp-status" id="tdRegOtpStatus" role="status" aria-live="polite" aria-label="Trạng thái xác thực Gmail"></div>
         <button type="button" class="td-otp-send" id="tdRegOtpSend" onclick="tdRegOtpSend()">Gửi mã</button>
         <button type="button" class="td-otp-ok" id="tdRegOtpOk" onclick="tdRegOtpVerify()">Xác thực</button>
       </div>
@@ -11856,6 +11858,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   function serverReady() { return !!window.TD_OTP_URL; }
   function resetOtp() {
     st.ok = false; st.mail = '';
+    try { if (window.tdOtpStatus) window.tdOtpStatus(''); } catch (e) {}
     var tick = $('tdRegOtpTick'); if (tick) tick.style.display = 'none';
     var box = $('tdRegOtpVerify'); if (box) box.style.display = 'none';
     var ci = $('tdRegOtpCode'); if (ci) { ci.value = ''; ci.disabled = false; }
@@ -11899,23 +11902,59 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     countdown(60);
     var ci = $('tdRegOtpCode'); if (ci) ci.focus();
   };
+  /* BAN 37 · Khung den sieu nho: loading xoay -> tich xanh.
+     Ket qua lay TU SERVER that (window.tdOtpVerify), KHONG gia lap ma. */
+  window.tdOtpStatus = function (mode) {
+    var box = $('tdRegOtpStatus'); if (!box) return;
+    box.innerHTML = '';
+    if (mode === 'loading') {
+      box.innerHTML = '<span class="td-otp-spin"></span>';
+    } else if (mode === 'ok') {
+      var img = document.createElement('img');
+      img.className = 'td-otp-check';
+      img.alt = 'Đã xác thực Gmail';
+      img.src = 'https://i.postimg.cc/WbwjcjdJ/file-00000000b4088209bd6e3038118db33c.png';
+      box.appendChild(img);
+      /* 2 frame lien tiep -> transition moi chay, tich hien ra chan thuc */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { try { img.classList.add('show'); } catch (e) {} });
+      });
+    } else if (mode === 'fail') {
+      box.innerHTML = '<span class="td-otp-fail">\u00d7</span>';
+      setTimeout(function () {
+        try { if (box.innerHTML.indexOf('td-otp-fail') >= 0) box.innerHTML = ''; } catch (e) {}
+      }, 1600);
+    }
+  };
   window.tdRegOtpVerify = async function () {
     if (st.ok) return;
     var ci = $('tdRegOtpCode'), v = ci ? ci.value.trim() : '';
-    if (!/^\d{6}$/.test(v)) { hint('Nhập đúng 6 chữ số trong Gmail nhé', 'warn'); return; }
-    if (!serverReady()) { hint('Chưa có server gửi mail (kiểm tra otp-config.js)', 'warn'); return; }
-    var ok = $('tdRegOtpOk'); if (ok) { ok.disabled = true; ok.textContent = '⏳ Đang kiểm tra...'; }
+    if (!/^\d{6}$/.test(v)) {
+      hint('Nhập đúng 6 chữ số trong Gmail nhé', 'warn'); window.tdOtpStatus('fail'); return;
+    }
+    if (!serverReady()) {
+      hint('Chưa có server gửi mail (kiểm tra otp-config.js)', 'warn'); window.tdOtpStatus('fail'); return;
+    }
+    var ok = $('tdRegOtpOk');
+    if (ok) ok.disabled = true;              /* giu nguyen chu, khong vo hang */
+    window.tdOtpStatus('loading');           /* khung den xoay */
     hint('Hệ thống đang kiểm tra mã...');
-    var good = await window.tdOtpVerify(st.mail || ($('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : ''), v);
+    var good = false;
+    try {
+      good = await window.tdOtpVerify(
+        st.mail || ($('tdRegMail') ? $('tdRegMail').value.trim().toLowerCase() : ''), v);
+    } catch (e) { good = false; }
     if (!good) {
       if (ok) { ok.disabled = false; ok.textContent = 'Xác thực'; }
+      window.tdOtpStatus('fail');           /* x do nho, tu mat sau 1.6s */
       hint('Mã OTP không đúng hoặc đã hết hạn (5 phút). ' + (window.TD_OTP_LAST_MSG || ''), 'warn');
       return;
     }
     st.ok = true;
     var tick = $('tdRegOtpTick'); if (tick) tick.style.display = 'inline-block';
     if (ci) ci.disabled = true;
-    if (ok) { ok.disabled = true; ok.textContent = 'Xác thực thành công'; }
+    if (ok) { ok.disabled = true; ok.textContent = 'Xác thực'; }
+    window.tdOtpStatus('ok');                /* tich xanh giu lai den khi doi Gmail */
     hint('Xác thực thành công · giờ bấm "Tiếp tục" để tạo tài khoản nhé', 'ok');
   };
 
@@ -12101,40 +12140,101 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   text-overflow:ellipsis !important; word-break:normal !important;
   max-width:74% !important; font-size:12px !important; letter-spacing:-.2px !important;
   text-align:right !important; line-height:1.2 !important; }
-/* 3. BAN 36 · +84 la NHAN TINH, KHONG nam trong gia tri input.
-   So nam sat ngay sau so 4 (khong con ho xa), mau dong nhat voi
-   placeholder "Ten dang nhap / Gmail / Mat khau" va Gmail / ID o Ca nhan. */
+/* 3. BAN 37 · +84 SAT NGAY SO (vd +845) · O TP GON · MAU DONG BO
+   +84 van la NHAN TINH nam NGOAI input: khong xoa duoc, khong nhay so 8,
+   con tro mac dinh dung ngay sau +84 (dau phan so). */
 .pe-phone-prefix, .td-phone-prefix{
   pointer-events:none !important; user-select:none !important;
   white-space:nowrap !important; font-family:'Poppins',sans-serif !important;
-  font-size:14px !important; font-weight:600 !important;
+  font-weight:600 !important;
 }
-/* ---- Dang ky: +84 + cac so + Gui ma / Xac thuc = cung mau #8b8b8b ---- */
-.td-auth-field .td-phone-prefix{
-  position:absolute !important; left:52px !important; top:50% !important;
-  transform:translateY(-50%) !important; z-index:2 !important;
-  color:#8b8b8b !important;
+/* ---- A. DANG KY: khung bo ngoai, icon + +84 + so thanh 1 cum, gap 3px ---- */
+.td-auth-field.td-phone-wrap{
+  position:relative !important; display:flex !important; align-items:center !important;
+  gap:3px !important; padding:0 14px !important; box-sizing:border-box !important;
+  background:#121212 !important; border:1px solid #3a3a3a !important;
+  border-radius:12px !important; margin-bottom:14px !important;
+}
+.td-auth-field.td-phone-wrap:focus-within{ border-color:#ff8c00 !important; }
+.td-auth-field.td-phone-wrap > i:first-child{
+  position:static !important; transform:none !important; left:auto !important; top:auto !important;
+  flex:0 0 auto !important; width:18px !important; margin:0 4px 0 0 !important;
+  font-size:15px !important; color:#8b8b8b !important;
+}
+.td-auth-field.td-phone-wrap .td-phone-prefix{
+  position:static !important; transform:none !important; left:auto !important; top:auto !important;
+  flex:0 0 auto !important; margin:0 !important; z-index:auto !important;
+  font-size:13px !important; letter-spacing:0 !important; color:#8b8b8b !important;
 }
 .td-auth-field.td-phone-wrap input{
-  padding-left:90px !important; padding-right:12px !important;
-  color:#8b8b8b !important; font-weight:600 !important;
+  flex:1 1 auto !important; width:auto !important; min-width:0 !important;
+  padding:15px 0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  background:transparent !important; box-shadow:none !important;
+  font-size:13px !important; font-weight:600 !important; letter-spacing:0 !important;
+  color:#8b8b8b !important;
+}
+.td-auth-field.td-phone-wrap input:focus{
+  border:0 !important; box-shadow:none !important; outline:0 !important;
 }
 .td-auth-field.td-phone-wrap input::placeholder{
   color:#8b8b8b !important; font-size:11.5px !important; font-weight:500 !important;
 }
-#tdRegOtpSend, #tdRegOtpOk{ color:#8b8b8b !important; }
-/* ---- Thong tin ca nhan: +84 + 9 so thanh 1 cum sat nhau, mau nhu Gmail/ID ---- */
-#pe-row-phone{ gap:4px !important; }
+/* ---- B. THONG TIN CA NHAN: +84 + so thanh +8485, khong con +84 85 ---- */
+#pe-row-phone{ gap:0 !important; }
 #pe-row-phone .pe-phone-prefix{
   flex:0 0 auto !important; margin-left:auto !important; margin-right:0 !important;
+  padding:0 !important; font-size:13px !important; letter-spacing:0 !important;
   color:#94a3b8 !important;
 }
 #pe-row-phone .pe-input{
-  flex:0 0 auto !important; width:112px !important; min-width:0 !important;
-  text-align:left !important; padding-left:0 !important;
+  flex:0 0 auto !important; width:104px !important; min-width:0 !important;
+  padding:0 0 0 1px !important; margin:0 !important;
+  text-align:left !important; font-size:13px !important; letter-spacing:0 !important;
   color:#94a3b8 !important; font-weight:600 !important;
 }
 #pe-row-phone .pe-input::placeholder{ color:#94a3b8 !important; }
+/* ---- C. MAU: +84 / so / Gui ma / Xac thuc = mau placeholder ---- */
+#tdRegOtpSend, #tdRegOtpOk,
+.td-otp-oneline .td-otp-send, .td-otp-oneline .td-otp-ok{ color:#8b8b8b !important; }
+/* ---- D. OTP: on vua du 6 so + khung den status sat canh ---- */
+.td-otp-oneline{ gap:4px !important; }
+.td-otp-oneline .td-auth-field.td-otp-field{
+  flex:0 0 auto !important; width:80px !important; min-width:0 !important;
+  padding:0 7px !important; box-sizing:border-box !important;
+}
+.td-otp-oneline .td-auth-field.td-otp-field input{
+  width:100% !important; min-width:0 !important; padding:8px 0 !important;
+  letter-spacing:1px !important; font-size:12px !important; text-align:left !important;
+}
+.td-otp-oneline .td-otp-send, .td-otp-oneline .td-otp-ok{
+  min-width:60px !important; padding:7px 7px !important; white-space:nowrap !important;
+}
+.td-otp-status{
+  flex:0 0 auto !important; width:22px !important; height:22px !important;
+  margin:0 1px 0 0 !important; padding:0 !important; box-sizing:border-box !important;
+  background:#000000 !important; border:1px solid #333333 !important;
+  border-radius:6px !important; display:flex !important; align-items:center !important;
+  justify-content:center !important; overflow:hidden !important;
+}
+.td-otp-status .td-otp-spin{
+  display:block !important; width:13px !important; height:13px !important;
+  box-sizing:border-box !important; border:2px solid rgba(255,255,255,.25) !important;
+  border-top-color:#ffffff !important; border-radius:50% !important;
+  animation:tdOtpSpin .65s linear infinite !important;
+}
+@keyframes tdOtpSpin{ to{ transform:rotate(360deg); } }
+.td-otp-status .td-otp-check{
+  display:block !important; width:18px !important; height:18px !important;
+  object-fit:contain !important; opacity:0 !important; transform:scale(.35) !important;
+  transition:opacity .22s ease, transform .34s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.td-otp-status .td-otp-check.show{ opacity:1 !important; transform:scale(1) !important; }
+.td-otp-status .td-otp-fail{
+  color:#fb7185 !important; font-size:15px !important; font-weight:800 !important;
+  line-height:1 !important; animation:tdOtpFail .3s ease !important;
+}
+@keyframes tdOtpFail{ from{ opacity:0; transform:scale(.4); } to{ opacity:1; transform:scale(1); } }
 </style>
 <script>
 (function () {

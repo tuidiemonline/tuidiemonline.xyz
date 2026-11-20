@@ -1,4 +1,4 @@
-# TÚI ĐIỂM ONLINE · BẢN 36 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
+# TÚI ĐIỂM ONLINE · BẢN 37 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
 
 File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
@@ -6,7 +6,42 @@ File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuid
 > Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
 > toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
-## 🆕 BẢN 36 · chỉnh giao diện ô SĐT (đúng ảnh chụp)
+## 🆕 BẢN 37 · khung trạng thái OTP + `+84` sát số
+
+1. **Ô nhập mã thu gọn**: còn đúng `80px` (vừa 6 số), không còn kéo dài hết hàng.
+   Ngay cạnh ô là **khung đen 22px** (`#tdRegOtpStatus`).
+2. **Bấm "Xác thực"**: khung hiện **vòng xoay trắng** → gọi thật
+   `window.tdOtpVerify()` (Render `/api/verify-otp`, mã 6 số do server sinh) →
+   đúng mã hiện **tích xanh** từ ảnh bạn gửi, nảy nhẹ
+   `cubic-bezier(.34,1.56,.64,1)`; sai mã hiện dấu `×` đỏ 1.6s rồi xoá.
+   Tích xanh **giữ lại** đến khi đổi Gmail / bấm Gửi mã lại → user luôn biết
+   mình đã xác thực Gmail chưa. Không còn đổi chữ nút thành "⏳ Đang kiểm tra".
+3. **`+84` sát số thật sự** (`+845...`): bỏ hẳn `position:absolute` +
+   `padding-left:90px`. Khung giờ là wrapper `flex`, thứ tự
+   `icon → +84 → 3px → số`. Cả **Đăng ký** lẫn **Thông tin cá nhân** đều gom
+   thành một cụm, không còn `+84 85`.
+4. **Màu đồng bộ**: `+84`, các số sau, **Gửi mã / Xác thực** = `#8b8b8b`
+   (đúng màu *Tên đăng nhập / Gmail / Mật khẩu*); trang cá nhân `#94a3b8`
+   (đúng màu *Gmail / ID*). Placeholder giữ
+   `nhập số điện thoại ( không bắt buộc )`.
+5. `+84` vẫn là nhãn tĩnh ngoài input: không xoá được, không nháy số `8`,
+   con trỏ đứng ngay sau số `4`, lưu tự ghép `+84` + 9 số.
+
+> Giữ nguyên: mũi tên Đăng ký **đen · trắng · không viền xanh**.
+
+---
+
+## 🧪 Test riêng trước khi đưa lên web chính
+
+Có thể (và nên) copy code sang branch / thư mục `test/` để thử ổn định rồi
+mới push `main`. **Không copy nguyên OTP + Convex từ bản chính**: hãy tạo
+project Convex mới + Render service OTP mới cho bản test, vì dùng chung thì
+điểm danh / quay / đăng ký thử sẽ ghi thẳng vào database của user thật.
+Khi ổn định, chỉ copy code (không copy data) rồi `npx convex deploy`.
+
+---
+
+## 📌 BẢN 36 (giữ nguyên) · chỉnh giao diện ô SĐT
 
 1. **Đăng ký · `+84` và số quá xa nhau**: bỏ `padding-left:104px`, đưa về
    `90px` → chữ số **nằm ngay sát số 4** của `+84`. Vẫn là nhãn tĩnh ngoài
