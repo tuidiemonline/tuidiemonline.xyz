@@ -830,7 +830,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       <div class="td-otp-hint" id="tdRegOtpHint" style="display:none!important" aria-hidden="true"></div>
     </div>
     <div class="td-auth-field"><i class="fas fa-tag"></i><input id="tdRegNick" type="text" placeholder="Biệt danh" autocomplete="off" required></div>
-    <div class="td-auth-field td-phone-wrap"><i class="fas fa-phone"></i><span class="td-phone-prefix" id="tdRegPhonePrefix">+84</span><input id="tdRegPhone" type="tel" inputmode="numeric" maxlength="9" placeholder="Nhập số, bỏ 0 đầu" autocomplete="off"></div>
+    <div class="td-auth-field td-phone-wrap"><i class="fas fa-phone"></i><span class="td-phone-prefix" id="tdRegPhonePrefix">+84</span><input id="tdRegPhone" type="tel" inputmode="numeric" maxlength="9" placeholder="nhập số điện thoại ( không bắt buộc )" autocomplete="off"></div>
     <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass" type="password" placeholder="Mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye" onclick="tdToggleRegPass()"></i></div>
     <div class="td-auth-field"><i class="fas fa-lock"></i><input id="tdRegPass2" type="password" placeholder="Nhập lại mật khẩu" autocomplete="off" required><i class="fas fa-eye-slash td-auth-eye td-auth-eye-2" onclick="tdToggleRegPass2()"></i></div>
     <div class="td-auth-legal">Bằng cách đăng nhập, bạn đồng ý với<br>
@@ -7224,7 +7224,7 @@ body.week-ticket-open{ overflow:hidden !important; }
       <input class="pe-input" id="peMail" type="text" readonly>
       <span class="pe-tag">Mặc định</span>
     </div>
-    <div class="pe-row">
+    <div class="pe-row" id="pe-row-phone">
       <label class="pe-label" for="pePhone">Số điện thoại</label>
       <span class="pe-phone-prefix">+84</span>
       <input class="pe-input" id="pePhone" type="tel" inputmode="numeric" maxlength="9"
@@ -12101,19 +12101,40 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   text-overflow:ellipsis !important; word-break:normal !important;
   max-width:74% !important; font-size:12px !important; letter-spacing:-.2px !important;
   text-align:right !important; line-height:1.2 !important; }
-/* 3. BAN 35 · +84 la NHAN TINH, KHONG nam trong gia tri input.
-   Khong de len icon dien thoai, khong bi xoa, khong nhay so 8. */
+/* 3. BAN 36 · +84 la NHAN TINH, KHONG nam trong gia tri input.
+   So nam sat ngay sau so 4 (khong con ho xa), mau dong nhat voi
+   placeholder "Ten dang nhap / Gmail / Mat khau" va Gmail / ID o Ca nhan. */
 .pe-phone-prefix, .td-phone-prefix{
-  color:#ffffff !important; font-size:15px !important; font-weight:800 !important;
   pointer-events:none !important; user-select:none !important;
   white-space:nowrap !important; font-family:'Poppins',sans-serif !important;
+  font-size:14px !important; font-weight:600 !important;
 }
-.pe-phone-prefix{ flex:0 0 auto !important; margin-left:auto !important; }
+/* ---- Dang ky: +84 + cac so + Gui ma / Xac thuc = cung mau #8b8b8b ---- */
 .td-auth-field .td-phone-prefix{
   position:absolute !important; left:52px !important; top:50% !important;
   transform:translateY(-50%) !important; z-index:2 !important;
+  color:#8b8b8b !important;
 }
-.td-auth-field.td-phone-wrap input{ padding-left:104px !important; }
+.td-auth-field.td-phone-wrap input{
+  padding-left:90px !important; padding-right:12px !important;
+  color:#8b8b8b !important; font-weight:600 !important;
+}
+.td-auth-field.td-phone-wrap input::placeholder{
+  color:#8b8b8b !important; font-size:11.5px !important; font-weight:500 !important;
+}
+#tdRegOtpSend, #tdRegOtpOk{ color:#8b8b8b !important; }
+/* ---- Thong tin ca nhan: +84 + 9 so thanh 1 cum sat nhau, mau nhu Gmail/ID ---- */
+#pe-row-phone{ gap:4px !important; }
+#pe-row-phone .pe-phone-prefix{
+  flex:0 0 auto !important; margin-left:auto !important; margin-right:0 !important;
+  color:#94a3b8 !important;
+}
+#pe-row-phone .pe-input{
+  flex:0 0 auto !important; width:112px !important; min-width:0 !important;
+  text-align:left !important; padding-left:0 !important;
+  color:#94a3b8 !important; font-weight:600 !important;
+}
+#pe-row-phone .pe-input::placeholder{ color:#94a3b8 !important; }
 </style>
 <script>
 (function () {
@@ -12142,13 +12163,17 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
      KHONG con hien 2 lan +84 va KHONG nhay so 8 khi backspace. */
   function tdPhoneDigits(v) {
     var d = String(v == null ? '' : v).replace(/\D/g, '');
-    if (d.indexOf('84') === 0) d = d.slice(2);   /* lo dan ca +84... */
+    /* Chi bo ma quoc gia khi that su la chuoi dai co +84 (vd +84912345678).
+       KHONG cat nham so that bat dau bang 84 (vd 84559633). */
+    if (d.length > 9 && d.indexOf('84') === 0) d = d.slice(2);
     if (d.charAt(0) === '0') d = d.slice(1);     /* user khong can go so 0 */
     return d.slice(0, 9);
   }
   window.tdPhoneDigits = tdPhoneDigits;
   window.tdPhoneFull = function (v) {
-    var d = tdPhoneDigits(String(v == null ? '' : v).replace(/^\+?84/, ''));
+    var raw = String(v == null ? '' : v).trim();
+    if (/^\+84/.test(raw)) raw = raw.slice(3);
+    var d = tdPhoneDigits(raw);
     /* Chi luu so hop le (8-9 chu so). Dang go do / chi con "+848" -> bo trong. */
     return d.length >= 8 ? '+84' + d : '';
   };

@@ -1,4 +1,4 @@
-# TÚI ĐIỂM ONLINE · BẢN 35 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
+# TÚI ĐIỂM ONLINE · BẢN 36 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
 
 File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
@@ -6,7 +6,29 @@ File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuid
 > Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
 > toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
-## 🆕 BẢN 35 · 3 lỗi vừa báo đã sửa
+## 🆕 BẢN 36 · chỉnh giao diện ô SĐT (đúng ảnh chụp)
+
+1. **Đăng ký · `+84` và số quá xa nhau**: bỏ `padding-left:104px`, đưa về
+   `90px` → chữ số **nằm ngay sát số 4** của `+84`. Vẫn là nhãn tĩnh ngoài
+   input, con trỏ mặc định đứng ngay sau `+84`, không xóa được `+84`.
+2. **Đổi màu đồng bộ**: `+84`, các số sau `+84`, và 2 nút **Gửi mã / Xác thực**
+   đều dùng `#8b8b8b` = đúng màu placeholder *Tên đăng nhập / Gmail / Mật khẩu*
+   (trước đây là trắng đậm, lệch tông).
+3. **Thông tin cá nhân · cũng bị hở xa**: hàng SĐT gom `+84` + 9 số thành
+   **một cụm sát nhau** (`gap:4px`, input không còn `flex:1` kéo sang phải,
+   chữ căn trái). Màu chuyển sang `#94a3b8` = đúng màu **Gmail / ID tài khoản**.
+4. **Placeholder mới**: xoá `"Nhập số, bỏ 0 đầu"`, thay bằng
+   `"nhập số điện thoại ( không bắt buộc )"` — đăng ký không bắt buộc SĐT,
+   để trống vẫn tạo được acc.
+5. **Vá thêm lỗi tiềm ẩn**: `tdPhoneDigits` trước đó cắt nhầm 2 chữ số đầu
+   của số thật bắt đầu bằng `84` (vd `84559633` → `559633`). Giờ chỉ bỏ mã
+   quốc gia khi chuỗi dài có `+84` thật sự (`+84912345678`).
+
+> Mũi tên quay lại trang Đăng ký giữ **nền đen · mũi tên trắng · KHÔNG viền xanh**.
+
+---
+
+## 📌 BẢN 35 · 3 lỗi đã sửa (giữ nguyên)
 
 1. **Điểm danh +10 mà "Coin hôm nay" chỉ +5**: ở chế độ máy `claim_task`
    nhận `p_reward = 0` (để server tự chốt) nhưng lại mặc định `5`. Giờ dùng
