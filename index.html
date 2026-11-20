@@ -1032,7 +1032,11 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
   window.tdForgotVerify = async function () {
     if (verified) { step(3); return; }
     var el = $('tdFgCodeInput'), v = el ? el.value.trim() : '';
-    if (!/^\d{6}$/.test(v)) { msg('Nhập đúng 6 chữ số nhé', '#fda4af'); return; }
+    if (!/^\d{6}$/.test(v)) {
+      msg('Chưa nhập mã xác thực', '#fda4af');
+      try { if (window.tdOtpGapStatus) window.tdOtpGapStatus('fg', 'none'); } catch (e) {}
+      return;
+    }
     if (!window.TD_OTP_URL) return;
     var vb = $('tdFgVerifyBtn'); if (vb) { vb.disabled = true; vb.textContent = '...'; }
     var ok = await window.tdOtpVerify(mail, v);
@@ -11897,11 +11901,11 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     var btn = $('tdRegOtpSend'), tm = $('tdRegOtpTimer');
     if (st.timer) clearInterval(st.timer);
     var left = sec;
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Gửi lại sau ' + left + 's'; }
+    if (btn) { btn.disabled = true; btn.textContent = left + 's'; }
     st.timer = setInterval(function () {
       left--;
       if (tm) tm.textContent = left > 0 ? left + 's' : '';
-      if (btn) btn.textContent = left > 0 ? '⏳ ' + left + 's' : 'Gửi mã';
+      if (btn) btn.textContent = left > 0 ? left + 's' : 'Gửi mã';
       if (left <= 0) { clearInterval(st.timer); st.timer = null; if (btn) btn.disabled = false; }
     }, 1000);
   }
@@ -11913,7 +11917,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       return;
     }
     resetOtp();
-    var btn = $('tdRegOtpSend'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang gửi...'; }
+    var btn = $('tdRegOtpSend'); if (btn) { btn.disabled = true; }
     hint('Đang gửi mã 6 số tới ' + m + '...');
     var sent = await window.tdOtpRequest(m);
     if (!sent) {
@@ -11955,10 +11959,17 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     if (st.ok) return;
     var ci = $('tdRegOtpCode'), v = ci ? ci.value.trim() : '';
     if (!/^\d{6}$/.test(v)) {
-      hint('Nhập đúng 6 chữ số trong Gmail nhé', 'warn'); window.tdOtpStatus('fail'); return;
+      /* BAN 41: chi hien thong bao, KHONG loading / KHONG × o bat cu cho nao */
+      toast('Chưa nhập mã xác thực');
+      try { if (window.tdOtpGapStatus) window.tdOtpGapStatus('reg', 'none'); } catch (e) {}
+      try { if (window.tdOtpStatus) window.tdOtpStatus(''); } catch (e) {}
+      return;
     }
     if (!serverReady()) {
-      hint('Chưa có server gửi mail (kiểm tra otp-config.js)', 'warn'); window.tdOtpStatus('fail'); return;
+      hint('Chưa có server gửi mail (kiểm tra otp-config.js)', 'warn');
+      try { if (window.tdOtpStatus) window.tdOtpStatus(''); } catch (e) {}
+      try { if (window.tdOtpGapStatus) window.tdOtpGapStatus('reg', 'none'); } catch (e) {}
+      return;
     }
     var ok = $('tdRegOtpOk');
     if (ok) ok.disabled = true;              /* giu nguyen chu, khong vo hang */
@@ -11971,7 +11982,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     } catch (e) { good = false; }
     if (!good) {
       if (ok) { ok.disabled = false; ok.textContent = 'Xác thực'; }
-      window.tdOtpStatus('fail');           /* x do nho, tu mat sau 1.6s */
+      window.tdOtpStatus('');              /* BAN 41: × chỉ ở khe cạnh ô mã */
       hint('Mã OTP không đúng hoặc đã hết hạn (5 phút). ' + (window.TD_OTP_LAST_MSG || ''), 'warn');
       return;
     }
@@ -12476,11 +12487,10 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   /* A. tdOtpStatus cu tro vao khung den -> gio tro vao NUT "Xac thuc".
      st.ok trong code cu van duoc set -> validate dang ky khong bi gay. */
   window.tdOtpStatus = function (mode) {
+    /* BAN 41: xoay / tích / × CHỈ hiện ở khe cạnh ô 6 số.
+       Nút "Xác thực" luôn giữ nguyên chữ, không đổi, không hiện ×. */
     var b = $('tdRegOtpOk'); if (!b) return;
-    if (mode === 'loading') spin(b);
-    else if (mode === 'ok') { tick(b); b.disabled = true; }
-    else if (mode === 'fail') fail(b, 'Xác thực');
-    else restore(b, 'Xác thực', false);
+    restore(b, 'Xác thực', false);
   };
 
   /* B. Dat spinner NGAY TRONG luc goi server (sau khi code cu da reset chu),
@@ -12509,7 +12519,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     };
   }
 
-  /* C. Gửi mã (Đăng ký): loading -> tích xanh -> countdown tự viết lại chữ */
+  /* C. Gửi mã (Đăng ký): BAN 41 xoay trong nút -> countdown 60s, KHÔNG tích xanh */
   var _send = window.tdRegOtpSend;
   if (_send) {
     window.tdRegOtpSend = async function () {
@@ -12519,8 +12529,8 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       spin(b);
       try { await _send.apply(this, arguments); }
       catch (e) { restore(b, 'Gửi mã', false); return; }
-      if (window.__tdOtpLastSent) tick(b);      /* 1s sau countdown(60) tu接管 */
-      else restore(b, 'Gửi mã', false);
+      if (!window.__tdOtpLastSent) restore(b, 'Gửi mã', false);
+      /* BAN 41: gửi mã xong chỉ hiện 60s, KHÔNG tích xanh lúc chưa nhập OTP */
     };
   }
 
@@ -12534,19 +12544,19 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       spin(b);
       try { await _fgSend.apply(this, arguments); }
       catch (e) { restore(b, 'Gửi mã', false); return; }
-      if (window.__tdOtpLastSent) tick(b); else restore(b, 'Gửi mã', false);
+      if (!window.__tdOtpLastSent) restore(b, 'Gửi mã', false);
     };
   }
   if (_fgVerify) {
     window.tdForgotVerify = async function () {
-      var b = $('tdFgVerifyBtn');
-      window.__tdOtpActiveBtn = b;
-      spin(b);
-      try { await _fgVerify.apply(this, arguments); }
-      catch (e) { restore(b, 'Xác thực', false); return; }
-      var t = $('tdFgTick');
-      if (t && t.style.display && t.style.display !== 'none') tick(b);
-      else restore(b, 'Xác thực', false);
+      var ci = $('tdFgCodeInput');
+      /* BAN 41: chưa nhập mã -> hàm gốc tự báo, không xoay, không × */
+      if (!ci || !/^\d{6}$/.test((ci.value || '').trim())) {
+        return _fgVerify.apply(this, arguments);
+      }
+      var r = await _fgVerify.apply(this, arguments);
+      var b = $('tdFgVerifyBtn'); if (b) { b.textContent = 'Xác thực'; }
+      return r;
     };
   }
 
@@ -12568,8 +12578,9 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       if (g('tdRegPass') !== g('tdRegPass2')) {
         toast('Đăng ký thất bại! Mật khẩu nhập lại không khớp.'); return;
       }
-      var okb = $('tdRegOtpOk');
-      var verified = !!(okb && okb.querySelector('.td-btn-check'));
+      var gap = $('tdRegOtpGap'), treg = $('tdRegOtpTick');
+      var verified = !!(gap && gap.querySelector('.td-gap-check')) ||
+                     !!(treg && treg.style.display && treg.style.display !== 'none');
       if (!verified) {
         toast('Đăng ký thất bại! Phải xác thực Gmail (hiện tích xanh) trước khi tạo tài khoản.');
         return;
@@ -12643,6 +12654,14 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     var orig = window[name];
     if (typeof orig !== 'function' || orig.__td39) return;
     var w = async function () {
+      /* BAN 41: Gửi mã chỉ xoay trong nút rồi hiện 60s, khe im lặng */
+      if (/Send$/i.test(name)) return orig.apply(this, arguments);
+      /* BAN 41: chưa nhập mã -> chỉ báo, không xoay, không × */
+      var ci = $(which === 'fg' ? 'tdFgCodeInput' : 'tdRegOtpCode');
+      if (!ci || !/^\d{6}$/.test((ci.value || '').trim())) {
+        window.tdOtpGapStatus(which, 'none');
+        return orig.apply(this, arguments);
+      }
       window.tdOtpGapStatus(which, 'loading');
       var r;
       try { r = await orig.apply(this, arguments); } catch (e) { r = undefined; }

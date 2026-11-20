@@ -1,4 +1,4 @@
-# TÚI ĐIỂM ONLINE · BẢN 39 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
+# TÚI ĐIỂM ONLINE · BẢN 41 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
 
 File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
@@ -6,16 +6,27 @@ File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuid
 > Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
 > toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
-## 🆕 BẢN 39 · khe nhỏ trong suốt ở chấm đỏ (chốt cuối OTP)
+## 🆕 BẢN 41 · chốt lại thông báo & luồng OTP
+
+1. Bấm **Gửi mã**: chỉ nút đó xoay → hiện `60s` → `59s`…`0s` → `Gửi mã`.
+   **Không** xoay thêm chỗ khác, **không** hiện tích xanh khi chưa nhập OTP.
+2. Chưa nhập mã mà bấm **Xác thực**: chỉ hiện **`Chưa nhập mã xác thực`**.
+   Không loading, không dấu `×` ở bất cứ chỗ nào (cả Đăng ký lẫn Quên mật khẩu).
+3. Đã nhập 6 số → **chỉ khe cạnh ô mã** xoay → đúng: tích xanh giữ lại /
+   sai: `×` đỏ chỉ ở khe, tự ẩn. Nút "Xác thực" luôn giữ nguyên chữ.
+4. Vẫn gọi OTP thật qua Render + Brevo, không giả lập mã. Đăng ký vẫn bắt buộc
+   có tích xanh (validate đọc tích từ khe).
+
+## 📌 BẢN 39 · khe nhỏ trong suốt ở chấm đỏ
 
 1. **Không làm khung ô vuông**. Ngay sau ô 6 số (đúng chỗ chấm đỏ) là một
    **khe trong suốt 22px**: không nền, không viền, không bo góc.
 2. Mặc định **ẩn** nên không chiếm chỗ → không còn "dư khúc" bên phải.
-   Bấm **Gửi mã / Xác thực** → khe hiện ra: **vòng xoay 12px** → đúng mã
-   **tích xanh 16px** (ảnh bạn gửi, nảy nhẹ) / sai mã **× đỏ 16px**, tự ẩn sau 2s.
+   Chỉ bấm **Xác thực** (đã nhập đủ 6 số) → khe hiện ra: **vòng xoay 12px** →
+   đúng mã **tích xanh 16px** (ảnh bạn gửi, nảy nhẹ) / sai mã **× đỏ 16px**, tự ẩn sau 2s.
    Kích thước **nhỏ mà vẫn thấy rõ** (không bé đến mức mất hút).
-3. Áp dụng **cả Đăng ký lẫn popup Quên mật khẩu**. Loading / tích xanh
-   **trong nút** của bản 38 vẫn giữ nguyên, chạy song song.
+3. Áp dụng **cả Đăng ký lẫn popup Quên mật khẩu**. Các nút giữ nguyên chữ;
+   riêng nút **Gửi mã** xoay rồi hiện `60s` (bỏ hẳn biểu tượng đồng hồ cát).
 4. Vẫn gọi OTP thật qua Render + Brevo (`tdOtpVerify` / `tdOtpRequest`),
    **không giả lập mã**. Đổi Gmail hoặc gửi lại mã → khe tự xoá trạng thái cũ.
 
