@@ -1,4 +1,4 @@
-# TÚI ĐIỂM ONLINE · BẢN 38 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
+# TÚI ĐIỂM ONLINE · BẢN 39 (TỔNG HỢP + RÀ LẠI TOÀN BỘ FILE)
 
 File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuidiemonline-final/`.
 
@@ -6,7 +6,20 @@ File nén: **tuidiemonline-final.zip** · giải nén ra đúng thư mục `tuid
 > Giữ nguyên những cái đã chạy tốt: OTP Render + Brevo, đồng hồ vòng quay 24h
 > toàn cục, chế độ máy chống `CONVEX_ERROR`, 1 khung nhập duy nhất, 1 acc 1 ví.
 
-## 🆕 BẢN 38 · bỏ khung đen, gom OTP, chốt đăng ký / đăng nhập
+## 🆕 BẢN 39 · khe nhỏ trong suốt ở chấm đỏ (chốt cuối OTP)
+
+1. **Không làm khung ô vuông**. Ngay sau ô 6 số (đúng chỗ chấm đỏ) là một
+   **khe trong suốt 22px**: không nền, không viền, không bo góc.
+2. Mặc định **ẩn** nên không chiếm chỗ → không còn "dư khúc" bên phải.
+   Bấm **Gửi mã / Xác thực** → khe hiện ra: **vòng xoay 12px** → đúng mã
+   **tích xanh 16px** (ảnh bạn gửi, nảy nhẹ) / sai mã **× đỏ 16px**, tự ẩn sau 2s.
+   Kích thước **nhỏ mà vẫn thấy rõ** (không bé đến mức mất hút).
+3. Áp dụng **cả Đăng ký lẫn popup Quên mật khẩu**. Loading / tích xanh
+   **trong nút** của bản 38 vẫn giữ nguyên, chạy song song.
+4. Vẫn gọi OTP thật qua Render + Brevo (`tdOtpVerify` / `tdOtpRequest`),
+   **không giả lập mã**. Đổi Gmail hoặc gửi lại mã → khe tự xoá trạng thái cũ.
+
+## 📌 BẢN 38 · bỏ khung đen, gom OTP, chốt đăng ký / đăng nhập
 
 1. **Bỏ hẳn khung đen** `#tdRegOtpStatus`. Loading xoay + tích xanh giờ nằm
    **ngay trong nút** "Gửi mã" / "Xác thực" (cả Đăng ký lẫn popup Quên mật khẩu).
@@ -133,7 +146,7 @@ Khi ổn định, chỉ copy code (không copy data) rồi `npx convex deploy`.
 
 ```
 tuidiemonline-final/
-├── index.html                  ← BAN 35 (toan bo sua o day)
+├── index.html                  ← BAN 39 (toan bo sua o day)
 ├── otp-config.js               ← TD_CONVEX_URL + TD_OTP_DEFAULT (giu nguyen)
 ├── package.json · CNAME · PING.md · README.md · .gitignore
 ├── convex/tasks.js             ← DEPLOY THAT
@@ -148,12 +161,12 @@ tuidiemonline-final/
 ## 4. LỆNH CẬP NHẬT · 1 lần chạy hết (có `unzip`)
 
 ```bash
-cd ~/tuidiemonline_termux && F=$(find ~ /sdcard/Download -type f \( -name 'tuidiemonline-final.zip' -o -name 'tuidiemonline-final.js' \) 2>/dev/null) && Z=$(ls -t $F 2>/dev/null | head -1) && [ -n "$Z" ] && cp "$Z" ./_ban.zip && unzip -o ./_ban.zip && cp -r tuidiemonline-final/. . && rm -rf tuidiemonline-final _ban.zip backup && git add . && (git commit -m "ban 35 - tong hop" || true) && git push origin main && npx convex deploy
+cd ~/tuidiemonline_termux && F=$(find ~ /sdcard/Download -type f \( -name 'tuidiemonline-final.zip' -o -name 'tuidiemonline-final.js' \) 2>/dev/null) && Z=$(ls -t $F 2>/dev/null | head -1) && [ -n "$Z" ] && cp "$Z" ./_ban.zip && unzip -o ./_ban.zip && cp -r tuidiemonline-final/. . && rm -rf tuidiemonline-final _ban.zip backup && git add . && (git commit -m "ban 39 - tong hop" || true) && git push origin main && npx convex deploy
 ```
 
-> Xoá file zip **cũ** trong repo trước để `ls -t` lấy đúng bản 35.
+> Xoá file zip **cũ** trong repo trước để `ls -t` lấy đúng bản 39.
 > Hỏi `Yes` → `Y`. Xong đợi Pages build ~1–2 phút, mở:
-> **`https://tuidiemonline.xyz/?v=17`**
+> **`https://tuidiemonline.xyz/?v=21`**
 
 ## 5. Kiểm tra nhanh sau khi lên web
 

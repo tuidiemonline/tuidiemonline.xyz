@@ -818,7 +818,9 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         <div class="td-auth-field td-otp-field">
           <input id="tdRegOtpCode" type="text" inputmode="numeric" maxlength="6" placeholder="nhập mã" autocomplete="one-time-code">
         </div>
-        <!-- BAN 38 · BỎ khung đen: loading / tích xanh nay nằm NGAY TRONG nút -->
+        <!-- BAN 39 · khe TRONG SUOT 22px ngay sau o 6 so (dung cho cham do):
+             loading xoay -> tich xanh / x do. KHONG khung, KHONG vien, KHONG nen. -->
+        <div class="td-otp-gap" id="tdRegOtpGap" aria-hidden="true"></div>
         <button type="button" class="td-otp-send" id="tdRegOtpSend" onclick="tdRegOtpSend()">Gửi mã</button>
         <button type="button" class="td-otp-ok" id="tdRegOtpOk" onclick="tdRegOtpVerify()">Xác thực</button>
       </div>
@@ -872,6 +874,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
       <div class="td-fg-mail" id="tdFgMailMask">***@gmail.com</div>
       <div class="td-fg-oneline">
         <div class="td-fg-field td-fg-otp-field"><input id="tdFgCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="nhập otp" autocomplete="one-time-code"></div>
+        <div class="td-otp-gap" id="tdFgOtpGap" aria-hidden="true"></div>
         <button class="td-fg-btn" id="tdFgSendBtn" onclick="tdForgotSend()">Gửi mã</button>
         <button class="td-fg-btn" id="tdFgVerifyBtn" onclick="tdForgotVerify()">Xác thực</button>
       </div>
@@ -12405,7 +12408,46 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
   opacity:0 !important; transform:scale(.35) !important;
   transition:opacity .22s ease, transform .34s cubic-bezier(.34,1.56,.64,1) !important; }
 .td-btn-check.show{ opacity:1 !important; transform:scale(1) !important; }
-.td-btn-fail{ color:#fb7185 !important; font-size:15px !important; font-weight:800 !important; }
+ .td-btn-fail{ color:#fb7185 !important; font-size:15px !important; font-weight:800 !important; }
+</style>
+
+<!-- ==================================================================
+      BAN 39 · KHE NHO TRONG SUOT O CHAM DO (khong co khung o vuong)
+      - Mac dinh AN -> khong chiem cho, khong bi "du khuc" ben phai
+      - Bam G ma / Xac thuc -> hien 22px: spinner 12px -> tich xanh 16px
+        (anh ban gui) / x do 16px. Nho ma van thay ro.
+      - Ap dung ca Dang ky va popup Quen mat khau.
+      ================================================================== -->
+<style id="td-ban39-css">
+.td-otp-gap{
+  flex:0 0 auto !important; width:22px !important; height:22px !important;
+  margin:0 !important; padding:0 !important; box-sizing:border-box !important;
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; overflow:hidden !important;
+  display:none !important; align-items:center !important; justify-content:center !important;
+}
+.td-otp-gap.show{ display:flex !important; }
+.td-otp-gap .td-gap-spin{
+  display:block !important; width:12px !important; height:12px !important;
+  box-sizing:border-box !important; border:2px solid rgba(255,255,255,.3) !important;
+  border-top-color:#ffffff !important; border-radius:50% !important;
+  animation:tdOtpSpin .65s linear infinite !important;
+}
+.td-otp-gap .td-gap-check{
+  display:block !important; width:16px !important; height:16px !important;
+  object-fit:contain !important; opacity:0 !important; transform:scale(.5) !important;
+  transition:opacity .22s ease, transform .34s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.td-otp-gap .td-gap-check.show{ opacity:1 !important; transform:scale(1) !important; }
+.td-otp-gap .td-gap-fail{
+  color:#ff4d4f !important; font-size:16px !important; font-weight:800 !important;
+  line-height:1 !important;
+}
+/* Neu code cu co them lai phan tu status: van KHONG duoc co khung den */
+.td-otp-status, #tdRegOtpStatus{
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  display:none !important;
+}
 </style>
 <script>
 (function () {
@@ -12557,6 +12599,88 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       if (cb) cb.checked = true;
       if (gb) { gb.disabled = false; gb.style.opacity = '1'; gb.style.cursor = 'pointer'; }
     }
+  } catch (e) {}
+})();
+</script>
+
+<!-- ==================================================================
+      BAN 39 · DIEU KHIEN KHE TRANG THAI (doc lap voi hieu ung trong nut BAN 38)
+      Ket qua van lay tu SERVER that (tdOtpVerify / tdOtpRequest), khong gia lap ma.
+      ================================================================== -->
+<script>
+(function () {
+  'use strict';
+  var IMG = 'https://i.postimg.cc/WbwjcjdJ/file-00000000b4088209bd6e3038118db33c.png';
+  function $(id) { return document.getElementById(id); }
+  function gapOf(which) { return $(which === 'fg' ? 'tdFgOtpGap' : 'tdRegOtpGap'); }
+
+  window.tdOtpGapStatus = function (which, mode) {
+    var g = gapOf(which); if (!g) return;
+    g.innerHTML = '';
+    if (!mode || mode === 'none') { g.className = 'td-otp-gap'; return; }
+    g.className = 'td-otp-gap show';
+    if (mode === 'loading') {
+      g.innerHTML = '<span class="td-gap-spin"></span>';
+    } else if (mode === 'ok') {
+      g.innerHTML = '<img class="td-gap-check" src="' + IMG + '" alt="Đã xác thực">';
+      var im = g.querySelector('.td-gap-check');
+      /* 2 frame lien tiep -> transition chay, tich hien ra chan thuc */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { if (im) im.classList.add('show'); });
+      });
+    } else if (mode === 'fail') {
+      g.innerHTML = '<span class="td-gap-fail">\u00d7</span>';
+      setTimeout(function () {
+        try {
+          if (g.innerHTML.indexOf('td-gap-fail') >= 0) window.tdOtpGapStatus(which, 'none');
+        } catch (e) {}
+      }, 2000);
+    }
+  };
+
+  /* Boc 4 ham: truoc khi goi -> loading; sau khi co ket qua -> tich / x */
+  function wrap(name, which, okFn) {
+    var orig = window[name];
+    if (typeof orig !== 'function' || orig.__td39) return;
+    var w = async function () {
+      window.tdOtpGapStatus(which, 'loading');
+      var r;
+      try { r = await orig.apply(this, arguments); } catch (e) { r = undefined; }
+      var ok = false;
+      try { ok = !!okFn(r); } catch (e) { ok = false; }
+      window.tdOtpGapStatus(which, ok ? 'ok' : 'fail');
+      return r;
+    };
+    w.__td39 = 1;
+    window[name] = w;
+  }
+
+  var hasTick = function (id) {
+    var b = $(id); return !!(b && b.querySelector('.td-btn-check'));
+  };
+
+  /* Dang ky */
+  wrap('tdRegOtpSend', 'reg', function () { return !!window.__tdOtpLastSent; });
+  wrap('tdRegOtpVerify', 'reg', function () {
+    if (hasTick('tdRegOtpOk')) return true;
+    var t = $('tdRegOtpTick');
+    return !!(t && t.style.display && t.style.display !== 'none');
+  });
+
+  /* Quen mat khau */
+  wrap('tdForgotSend', 'fg', function () { return !!window.__tdOtpLastSent; });
+  wrap('tdForgotVerify', 'fg', function () {
+    if (hasTick('tdFgVerifyBtn')) return true;
+    var t = $('tdFgTick');
+    return !!(t && t.style.display && t.style.display !== 'none');
+  });
+
+  /* Doi Gmail / go lai ma -> xoa trang thai cu trong khe */
+  try {
+    var m = $('tdRegMail');
+    if (m) m.addEventListener('input', function () {
+      window.tdOtpGapStatus('reg', 'none');
+    }, { passive: true });
   } catch (e) {}
 })();
 </script>
