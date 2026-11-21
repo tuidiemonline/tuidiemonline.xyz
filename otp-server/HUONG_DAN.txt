@@ -1,0 +1,44 @@
+TÚI ĐIỂM ONLINE · BẢN CHỐT LẦN 6
+====================================
+
+SỬA GÌ
+------
+1. CONVEX_ERROR (log: extra field 'stream' not in the validator)
+   -> Không đụng 5 bảng cũ nữa. Ví + tiến trình chuyển sang 5 bảng MỚI
+      (schemaless): td_wallet / td_task_state / td_claims /
+      td_ticket_claims / td_diamond_logs.
+   -> KHÔNG cần sửa schema.ts, KHÔNG cần xoá bảng, KHÔNG cần Dashboard.
+
+2. Về lại coin cũ
+   -> Ví mới seed sẵn: TỔNG 4.774 coin · HÔM NAY 260 coin.
+   -> Sang 00:00 (giờ VN) "Coin hôm nay" tự về 0, TỔNG vẫn giữ.
+
+3. Hết 3 chấm / hết nháy ở CẢ 2 ô
+   -> Số được điền ngay ở khung hình đầu tiên (đọc cache, hoặc seed).
+   -> Chỉ 1 đường ghi: tdPaint(). Chưa có server -> giữ số cũ;
+      server trả số cũ -> bỏ qua; chỉ đổi khi có coin thật.
+   -> Toast lỗi kết nối được chống spam (10 giây / lần).
+
+CÀI ĐẶT (Termux, dán 1 lần)
+---------------------------
+cd ~/td-convex/tuidiemonline_termux
+unzip -o ~/storage/downloads/tuidiem_capnhat.zip -d .
+cp convex_tasks.js convex/tasks.js
+npx convex deploy
+cp index.html ~/storage/downloads/index.html
+
+Sau đó: lấy index.html trong Downloads up đè lên GitHub repo
+tuidiemonline.xyz -> Commit changes -> đợi 1-2 phút -> Ctrl+F5.
+
+KHÔNG chạy lại mấy lệnh này nữa:
+  npx convex import --table users_coins --replace ... /dev/null -y
+  npx convex data delete ...
+  nano convex/schema.ts
+  npm run build / npm run dev / sửa .env.local
+
+KIỂM TRA
+--------
+  Home : Coin hôm nay = 260   (đứng yên, không 3 chấm)
+  Tôi  : Thu nhập     = 4.774 Coin (đứng yên, không nháy)
+  Thưởng vé / Nhiệm vụ: không còn "Chưa kết nối được hệ thống".
+  Nếu cần xem log: npx convex logs --prod

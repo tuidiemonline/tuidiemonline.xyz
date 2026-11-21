@@ -5,12 +5,14 @@
   "type": "commonjs",
   "main": "server.cjs",
   "scripts": {
-    "start": "node server.cjs"
+    "start": "node server.cjs",
+    "convex:deploy": "convex deploy"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "convex": "^1.0.0"
   }
 }

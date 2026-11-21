@@ -1,5 +1,5 @@
 /* ==================================================================
-TÚI ĐIỂM ONLINE · OTP SERVER · BẢN 29
+TÚI ĐIỂM ONLINE · OTP SERVER · BẢN 27
 ------------------------------------------------------------------
 Gửi mail bằng BREVO HTTPS API (cổng 443) thay vì Gmail SMTP.
 Render / Railway / Vercel chặn cổng 25/465/587 -> Nodemailer bị
@@ -21,7 +21,7 @@ BIẾN MÔI TRƯỜNG (Render → Environment):
   SENDER_NAME     = Tui Diem Online
 
 ⚠️ otpStore nằm trong RAM. Render Free restart / ngủ đông sẽ MẤT mã
-   đang chờ. Nhớ ping /health mỗi 5-10 phút (UptimeRobot FREE, xem PING.md).
+   đang chờ. Nhớ ping /health mỗi 10 phút (UptimeRobot / cron-job.org).
 ================================================================== */
 const express = require('express');
 const crypto = require('crypto');
