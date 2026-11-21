@@ -1,0 +1,12 @@
+{
+  "name": "tuidiemonline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tui Diem Online · GitHub Pages + Convex + OTP Brevo/Render",
+  "scripts": {
+    "convex:deploy": "convex deploy"
+  },
+  "dependencies": {
+    "convex": "^1.0.0"
+  }
+}
