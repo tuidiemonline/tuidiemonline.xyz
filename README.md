@@ -1,6 +1,91 @@
-# TÚI ĐIỂM ONLINE · BẢN 43b (MAIN · CLIXWALL + GIỮ NGUYÊN MỌI VÁ VÍ)
+# TÚI ĐIỂM ONLINE · BẢN 43c (MAIN · CLIXWALL + GIỮ NGUYÊN MỌI VÁ VÍ)
 
 File nén: **tuidiemonline-final.zip** · giải nén đè vào đúng thư mục repo nhánh `main`.
+
+## ⚡ UP LÊN GITHUB · 1 LỆNH DUY NHẤT
+
+> Dùng cho Termux **mới cài lại**, đã `git clone` repo về `~/tuidiemonline.xyz`
+> và đã chép `tuidiemonline-final.zip` vào **Downloads**. Chạy đúng 1 dòng này,
+> không cần `git init`, không cần `gh`, không cần `~/test-code` (thư mục cũ đã bỏ).
+
+```bash
+cd ~/tuidiemonline.xyz && rm -rf ~/.td43c && mkdir -p ~/.td43c && (unzip -oq ~/storage/downloads/tuidiemonline-final.zip -d ~/.td43c || true) && test -f ~/.td43c/tuidiemonline-final/index.html && cp -r ~/.td43c/tuidiemonline-final/. . && git add -A && git -c user.name=tuidiemonline -c user.email=quan984698@gmail.com commit -m "BAN 43c" && git push --force origin HEAD:main && echo "XONG: main len BAN 43c"
+```
+
+Khi `git push` hỏi `Username` → `tuidiemonline`; `Password` → dán **GitHub PAT**
+(không phải mật khẩu thường). Thấy `XONG: main len BAN 43c` → tải lại trang repo,
+commit mới nhất và tiêu đề README phải hiện **BẢN 43c**.
+
+> ⚠️ Các lệnh `cd ~/test-code/...`, `rm -rf ~/test-code`, `git init` ở phần changelog
+> bên dưới là **lịch sử các bản cũ**, đừng chạy lại trên Termux mới.
+
+
+## 🟢 BẢN 43c · Gộp toàn bộ, sửa nốt 3 điểm còn tồn (23/11 · 19:3x)
+
+### 1. Vì sao bấm Send test / curl mà «không thấy gì» — LỆCH DEV ↔ PROD
+Terminal báo `Successfully set CLIXWALL_SECRET (on dev deployment earnest-ibis-794)`
+và `Convex functions ready!` là **dev**, trong khi:
+
+| Thứ | Đang trỏ |
+|---|---|
+| `otp-config.js` (web / Admin / ví) | `https://tough-canary-511.convex.cloud` (**prod**) |
+| Postback URL trong ClixWall | `https://tough-canary-511.convex.site/...` (**prod**) |
+| `npx convex dev` + `convex env set` vừa chạy | `earnest-ibis-794` (**dev**) |
+
+`DUPLICATE` bạn thấy là **ví của bản dev**. Web đọc **prod**, prod lại chưa có
+`convex/http.js` → trước đó báo *«This Convex deployment does not have HTTP
+actions enabled»*. Hai kho dữ liệu khác nhau nên cộng bên này, nhìn bên kia.
+
+**Làm đúng (theo thứ tự):**
+```bash
+cd ~/tuidiemonline.xyz
+npm install                 # bắt buộc, tránh "Could not resolve convex/server"
+npx convex deploy            # khi CLI hỏi chọn deployment -> chọn PROD tough-canary-511
+```
+Vào **Convex Dashboard → chọn deployment Production → Settings → Environment
+Variables** thêm 2 biến (đừng set qua `npx convex env set` lúc `.env.local` còn
+trỏ dev):
+```
+CLIXWALL_SECRET      = <mã trong ô Secret của ClixWall>
+CLIXWALL_COIN_RATE   = 1000
+```
+Kiểm tra nhanh bằng trình duyệt hoặc curl (mới thêm ở 43c):
+```bash
+curl "https://tough-canary-511.convex.site/clixwallPing"
+# CLIXWALL_OK http_actions=on secret=set rate=1000
+```
+Rồi test conversion với **txn MỚI** (`test123` đã bị dedupe):
+```bash
+curl "https://tough-canary-511.convex.site/clixwallPostback?user_id=NnWqB6YQS1aJ3P7lJpirXC4GzJ72&txn=live001&reward=0.001&status=Completed&secret=<SECRET>"
+# OK uid=... coins=+1 txn=live001
+```
+Gửi lại đúng `live001` → `DUPLICATE ... (da cong truoc do, bo qua)`, vẫn 200,
+**không cộng lần 2**. Web poll `clixwall:inbox` mỗi 15s rồi cộng 1 lần.
+
+> Muốn test tiếp bằng `npx convex dev` thì phải đổi **cả 2**: Postback URL sang
+> `https://earnest-ibis-794.convex.site/...` và web mở
+> `?convex=https://earnest-ibis-794.convex.cloud`. Đừng trộn 2 deployment.
+
+### 2. Ẩn logo / hàng tab / «Powered by ClixWall»
+iframe là cross-origin → không sửa DOM bên trong được. Đã cắt bằng khung trong
+`index.html`: `#clixFrame` đẩy lên `--clix-top:104px` (mất logo + tab), lớp
+`.clix-mask-bottom` phủ `--clix-bottom:78px` (mất chân Powered by, kể cả khi
+cuộn). Máy hẹp <360px tự dùng 96/72. Chỉ còn danh sách Advertisement / Offers.
+Đổi 2 biến CSS nếu ClixWall chỉnh layout.
+
+### 3. Phản hồi postback đọc được ngay
+`convex/http.js` giờ trả `OK uid=... coins=+N txn=...` thay vì chữ `OK` trơn.
+Thêm `/clixwallPing` để chẩn đoán, **không lộ Secret, không cộng coin**.
+
+**Giữ nguyên từng byte:** 3 file `tasks.js` / `convex_tasks.js` / `convex/tasks.js`,
+`convex/clixwall.js` (dedupe + inbox), `otp-config.js`, `package.json`, `CNAME`,
+`PING.md`, `convex/auth.config.js.example`, `otp-server/*`. Toàn bộ vá
+42f → 42v (điểm danh 1 lần, F5 không nháy/không cộng dồn, mỗi acc 1 ví,
+nút Làm/Nhận, nhận nhiệm vụ tăng Coin hôm nay) **không đụng**.
+
+> **Đính chính:** các tin 43a / 43b trước chỉ đưa đoạn code CSS và lệnh ra chat,
+> **chưa ghi vào file zip**. Lần này CSS cắt + ping + hướng dẫn prod mới thực
+> sự nằm trong `tuidiemonline-final.zip`.
 
 ## 🟢 BẢN 43b · Xoá offerwall.me, tích hợp ClixWall (23/11 · 18:3x)
 
@@ -23,7 +108,7 @@ File nén: **tuidiemonline-final.zip** · giải nén đè vào đúng thư mụ
 
 ### Cấu hình 1 lần trên Convex (BẮT BUỘC)
 ```bash
-cd ~/test-code/tuidiemonline-final
+cd ~/tuidiemonline.xyz
 npx convex env set CLIXWALL_SECRET 'dán_Secret_trong_ô_Secret_của_ClixWall'
 npx convex env set CLIXWALL_COIN_RATE 1000
 npm install && npx convex deploy
@@ -375,7 +460,7 @@ chạy **chế độ máy** (nên coin vẫn tăng nhưng không ghi lên server
 - 3 file tasks: cùng SHA-256 · `testzip OK` · 15/15 file trong zip khớp bản đã sửa.
 
 ### ⚠️ VIỆC BẮT BUỘC (2 nơi, không làm thì vẫn đỏ)
-1. Đẩy zip lên **repo web** `tuidiemonline.xyz` (GitHub Pages) — lệnh như mọi bản.
+1. Đẩy zip lên **repo web** `tuidiemonline.xyz` (GitHub Pages) — dùng **1 lệnh duy nhất** ở mục ⚡ đầu README.
 2. **Deploy lại Convex** từ đúng thư mục có `convex/tasks.js` bản 42h:
 ```bash
 cd ~/test-code/tuidiemonline-final && npx convex deploy

@@ -1,5 +1,5 @@
 /* ==================================================================
-   convex/http.js · BAN 43b · POSTBACK CLIXWALL
+   convex/http.js · BAN 43c · POSTBACK CLIXWALL
    ------------------------------------------------------------------
    Endpoint: https://<deployment>.convex.site/clixwallPostback
    ClixWall gọi S2S, có thể là GET (khi URL có sẵn query) HOẶC
@@ -94,11 +94,33 @@ async function postback(ctx, req) {
     kind: isReversal ? "reversal" : "credit",
   });
 
-  return new Response(res && res.duplicate ? "DUPLICATE" : "OK", {
+  /* BAN 43c: trả chuỗi có UID + txn + số coin để curl / ClixWall test đọc được
+     ngay, không còn một chữ "OK" / "DUPLICATE" trống trơn gây tưởng là không có gì.
+     DUPLICATE vẫn là 200 (ClixWall sẽ không retry), nhưng KHÔNG cộng lần 2. */
+  const body = (res && res.duplicate)
+    ? "DUPLICATE txn=" + txn + " uid=" + uid + " (da cong truoc do, bo qua)"
+    : "OK uid=" + uid + " coins=" + (delta > 0 ? "+" : "") + delta + " txn=" + txn;
+  return new Response(body, {
     status: 200,
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
+
+/* BAN 43c · Đường dẫn chẩn đoán: gõ trên trình duyệt để biết deployment NÀY
+   đã có http.js chưa và Secret đã được set chưa. KHÔNG lộ giá trị Secret,
+   KHÔNG cộng coin. Dùng để phân biệt dev / prod khi lỡ chạy `npx convex dev`. */
+http.route({
+  path: "/clixwallPing",
+  method: "GET",
+  handler: httpAction(async () => {
+    const has = !!env("CLIXWALL_SECRET", "");
+    return new Response(
+      "CLIXWALL_OK http_actions=on secret=" + (has ? "set" : "MISSING") +
+      " rate=" + env("CLIXWALL_COIN_RATE", "1000"),
+      { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+    );
+  }),
+});
 
 http.route({ path: "/clixwallPostback", method: "GET",  handler: httpAction(postback) });
 http.route({ path: "/clixwallPostback", method: "POST", handler: httpAction(postback) });

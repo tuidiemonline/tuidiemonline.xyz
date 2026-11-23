@@ -1862,12 +1862,13 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     </div>
   </div>
 
-  <!-- TAB NHIỆM VỤ · BẢN 43b · CLIXWALL (đã xoá hoàn toàn offerwall.me) -->
+  <!-- TAB NHIỆM VỤ · BẢN 43c · CLIXWALL (đã xoá hoàn toàn offerwall.me) -->
   <div id="tab-nhiemvu" class="hidden clix-page">
     <div class="clix-wrap">
       <div id="clixStatus" class="clix-status">Đang chờ đăng nhập…</div>
       <iframe id="clixFrame" src="" title="ClixWall offers" width="100%" height="600"
         frameborder="0" allow="clipboard-write" loading="lazy"></iframe>
+      <div class="clix-mask-bottom" aria-hidden="true"></div>
     </div>
   </div>
 
@@ -2360,7 +2361,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
 
 <div class="copied-toast" id="copiedToast"><i class="fas fa-check-circle"></i> <span>Đã copy!</span></div>
 
-<!-- BẢN 43b · đã xoá modal offerwall.me; tab Offers dùng iframe ClixWall -->
+<!-- BẢN 43c · đã xoá modal offerwall.me; tab Offers dùng iframe ClixWall -->
 
 <!-- FIREBASE SDK -->
 <script type="module">
@@ -2428,7 +2429,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
   /* BAN 24 · 1 LINK DUY NHAT: otp-config.js (nap o dong 4) la nguon chan ly. */
   window.CONVEX_URL = window.TD_CONVEX_URL || 'https://tough-canary-511.convex.cloud';
   /* BAN 42l: go Console `TD_BUILD` de biet web dang chay ban nao */
-  window.TD_BUILD = 'BAN 43b';
+  window.TD_BUILD = 'BAN 43c';
   /* Đổi thành true SAU khi đã điền Firebase Project ID trong convex/auth.config.js
      và chạy `npx convex env set STRICT_AUTH 1`. Giữ false để web chạy ngay,
      không bị chặn bởi header token trong lúc chưa cấu hình xong. */
@@ -2795,7 +2796,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     /* BAN 24 · OTP nam tren cung deployment Convex */
     otp_request:            { path: 'tasks:requestOtp',          kind: 'mutation' },
     otp_verify:             { path: 'tasks:verifyOtp',           kind: 'mutation' },
-    /* BAN 43b · ClixWall: module riêng, KHÔNG đụng 3 file tasks.js */
+    /* BAN 43c · ClixWall: module riêng, KHÔNG đụng 3 file tasks.js */
     clixwall_inbox:         { path: 'clixwall:inbox',            kind: 'query' },
     clixwall_ack:           { path: 'clixwall:ack',              kind: 'mutation' }
   };
@@ -3224,7 +3225,7 @@ function histAdd(type, pts, label) {
     if (window.tdHistAdd) window.tdHistAdd(pretty.trim(), pts);
   } catch (e) {}
 }
-/* BẢN 43b · postback ClixWall gọi hàm này. Chỉ truyền TÊN offer; histAdd()
+/* BẢN 43c · postback ClixWall gọi hàm này. Chỉ truyền TÊN offer; histAdd()
    tự thêm 'Làm nhiệm vụ ' và đẩy 1 dòng duy nhất vào sổ riêng từng acc. */
 window.histAddNhiemVu = function(pts, ten) {
   histAdd('nhiemvu', pts, String(ten || 'ClixWall').trim());
@@ -6736,7 +6737,7 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- BẢN 43b · đã xoá hoàn toàn module nguồn nhiệm vụ cũ.
+<!-- BẢN 43c · đã xoá hoàn toàn module nguồn nhiệm vụ cũ.
      Code ClixWall nằm ở script cuối file, sau khi mọi engine ví đã sẵn sàng. -->
 
 
@@ -7194,13 +7195,23 @@ body{
 .dt-go.claimed{ background:#1b2a41; color:#64748b; box-shadow:none; cursor:default; }
 .dt-hint{ font-size:11px; color:#64748b; text-align:center; line-height:1.6; margin-top:12px; }
 
-/* ---------- Tab Nhiệm vụ · BẢN 43b · ClixWall (KHÔNG cắt UI đối tác) ---------- */
-.clix-page{ position:fixed; inset:0 0 66px 0; z-index:9990; background:#070d18; }
-.clix-wrap{ position:absolute; inset:0; overflow:hidden; }
+/* ---------- Tab Nhiệm vụ · BẢN 43c · ClixWall ----------
+   Cross-origin: KHÔNG dùng JS sửa DOM bên trong iframe.
+   Cắt bằng khung: đẩy iframe lên để ẩn logo + hàng tab, phủ chân để
+   ẩn "Powered by ClixWall" -> chỉ còn danh sách Advertisement / Offers.
+   Chỉnh 2 số --clix-top / --clix-bottom nếu ClixWall đổi layout. */
+.clix-page{ --clix-top:104px; --clix-bottom:78px;
+  position:fixed; inset:0 0 66px 0; z-index:9990; background:#070d18; }
+.clix-wrap{ position:absolute; inset:0; overflow:hidden; background:#070d18; }
 .clix-status{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   color:#94a3b8; font-size:14px; text-align:center; padding:24px; z-index:2; background:#070d18; }
-#clixFrame{ position:absolute; left:0; top:0; width:100%; height:100%;
+#clixFrame{ position:absolute; left:0; top:calc(-1 * var(--clix-top)); width:100%;
+  height:calc(100% + var(--clix-top) + var(--clix-bottom));
   border:0; background:#0f172a; display:none; }
+/* Lớp phủ chân: chặn footer đối tác kể cả khi cuộn iframe */
+.clix-mask-bottom{ position:absolute; left:0; right:0; bottom:0;
+  height:var(--clix-bottom); background:#070d18; pointer-events:none; z-index:3; }
+@media (max-width:360px){ .clix-page{ --clix-top:96px; --clix-bottom:72px; } }
 .hist-log-row{ gap:10px; }
 .hist-log-row span{ flex:1; color:#dbeafe; }
 
@@ -13482,7 +13493,7 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
 
 <script>
 /* ==================================================================
-   BAN 43b · CLIXWALL — thay thế hoàn toàn offerwall.me
+   BAN 43c · CLIXWALL — thay thế hoàn toàn offerwall.me
    ------------------------------------------------------------------
    - Public API Key nằm ở đây là AN TOÀN (ClixWall cho phép lộ frontend).
    - Secret KHÔNG BAO GIỜ nằm trong file này: convex/http.js đọc
