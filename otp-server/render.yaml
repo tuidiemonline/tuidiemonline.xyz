@@ -1,0 +1,31 @@
+# BAN 42c · Render service OTP.
+# QUAN TRONG: render.yaml nam trong otp-server/ nen chi co tac dung khi
+# deploy bang Blueprint. Neu service tao tay: set Root Directory = otp-server
+# (hoac dung package.json goc, da co san start + express + firebase-admin).
+# Sau khi push main: vao Dashboard bam Manual Deploy, KHONG tu dong cap nhat.
+services:
+  - type: web
+    name: otp-server
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: BREVO_API_KEY
+        sync: false
+      # BAN 42c: Service Account de dat lai mat khau bang OTP (KHONG can link)
+      # FIREBASE_PROJECT_ID co mac dinh = tui-diem-online-455e2 trong server.cjs
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: SENDER_EMAIL
+        value: support.tuidiemonline@gmail.com
+      - key: SENDER_NAME
+        value: Tui Diem Online
+      - key: RESET_SECRET
+        sync: false   # tuy chon; khong dat thi dung BREVO_API_KEY de ky ve OTP

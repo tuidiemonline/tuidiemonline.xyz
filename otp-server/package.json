@@ -1,0 +1,17 @@
+{
+  "name": "tuidiemonline-otp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.6.0"
+  }
+}

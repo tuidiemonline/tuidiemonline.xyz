@@ -1,0 +1,15 @@
+{
+  "name": "tuidiemonline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tui Diem Online · GitHub Pages + Convex + OTP Brevo/Render",
+  "scripts": {
+    "convex:deploy": "convex deploy",
+    "start": "node otp-server/server.cjs"
+  },
+  "dependencies": {
+    "convex": "^1.0.0",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.6.0"
+  }
+}
