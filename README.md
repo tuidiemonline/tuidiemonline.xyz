@@ -9,10 +9,25 @@ File nén: **tuidiemonline-final.zip** · giải nén đè vào đúng thư mụ
 > không cần `git init`, không cần `gh`, không cần `~/test-code` (thư mục cũ đã bỏ).
 
 ```bash
-cd ~/tuidiemonline.xyz && rm -rf ~/.td43c && mkdir -p ~/.td43c && (unzip -oq ~/storage/downloads/tuidiemonline-final.zip -d ~/.td43c || true) && test -f ~/.td43c/tuidiemonline-final/index.html && cp -r ~/.td43c/tuidiemonline-final/. . && git add -A && git -c user.name=tuidiemonline -c user.email=quan984698@gmail.com commit -m "BAN 43c" && git push --force origin HEAD:main && echo "XONG: main len BAN 43c"
+cd ~/tuidiemonline.xyz && rm -rf ~/.td43c && mkdir -p ~/.td43c && Z=$(ls ~/storage/shared/Download/tuidiemonline-final.zip ~/storage/downloads/tuidiemonline-final.zip 2>/dev/null | head -1) && unzip -oq "$Z" -d ~/.td43c && cp -r ~/.td43c/tuidiemonline-final/. . && git add -A && git -c user.name=tuidiemonline -c user.email=quan984698@gmail.com commit -m "BAN 43c" && git push --force origin HEAD:main && echo "XONG: main len BAN 43c"
 ```
 
 Khi `git push` hỏi `Username` → `tuidiemonline`; `Password` → dán **GitHub PAT**
+
+> **BẢN VÁ 43c1** (giữ nguyên `TD_BUILD = 'BAN 43c'` để không đổi quy trình kiểm tra):
+> 1. Sửa lỗi **điểm danh +10 mà "Coin hôm nay" hiện 20**: `claim_task` đã trả
+>    `r.today` sau khi cộng +10, `tdDayV3Sync()` đưa 10 vào ledger rồi
+>    `tdDayV3Bump(10)` lại cộng thêm lần nữa. Nay chỉ đẩy tới
+>    `max(serverToday, before + reward)` — không cộng chồng. Có thêm tự sửa
+>    1 lần cho số 20 đã lưu trong máy (chỉ khi hôm nay đã điểm danh và lịch
+>    sử không có giao dịch nào khác).
+> 2. Bỏ **màn hình đen "Đang tải nhiệm vụ ClixWall…"**: `#clixStatus` không còn
+>    phủ `inset:0`, iframe đổi `loading="eager"` và hiện ngay khi bấm Offers.
+> 3. Thêm `viewport-fit=cover` vào meta viewport.
+> 4. Lệnh 1 dòng ở trên tự dò cả `~/storage/shared/Download/` và
+>    `~/storage/downloads/` (đường dẫn cũ gây lỗi `cannot find or open`).
+> 5. `TD_BUILD`, CNAME, Convex, secret, 3 bản `tasks.js` giữ nguyên, đã rà soát.
+
 (không phải mật khẩu thường). Thấy `XONG: main len BAN 43c` → tải lại trang repo,
 commit mới nhất và tiêu đề README phải hiện **BẢN 43c**.
 

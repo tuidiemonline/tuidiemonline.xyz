@@ -86,7 +86,7 @@ body.in-game #tab-game,
 body.in-game #tab-diamond,
 body.in-game #tab-reward { display: none !important; }
 </style>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Túi Điểm Online - Trang Web Kiếm Tiền Làm Nhiệm Vụ Đổi Thưởng Và Các Trò Chơi Hấp Dẫn</title>
 <meta name="description" content="Túi Điểm Online - Trang Web Kiếm Tiền Làm Nhiệm Vụ Đổi Thưởng Và Các Trò Chơi Hấp Dẫn">
 <meta property="og:title" content="Chia sẻ Túi Điểm Online">
@@ -1867,7 +1867,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
     <div class="clix-wrap">
       <div id="clixStatus" class="clix-status">Đang chờ đăng nhập…</div>
       <iframe id="clixFrame" src="" title="ClixWall offers" width="100%" height="600"
-        frameborder="0" allow="clipboard-write" loading="lazy"></iframe>
+        frameborder="0" allow="clipboard-write" loading="eager"></iframe>
       <div class="clix-mask-bottom" aria-hidden="true"></div>
     </div>
   </div>
@@ -2617,6 +2617,7 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
      var o = window.tdWGet(), force = !!(opts && opts.force);
      var hasTotal = (total !== undefined && total !== null && total !== '');
      var hasToday = (today !== undefined && today !== null && today !== '');
+     var beforeToday = window.tdDayV3Get ? window.tdDayV3Get().today : 0;
      if (hasToday && window.tdDayV3Sync) window.tdDayV3Sync(today);
      var D = window.tdDayV3Get ? window.tdDayV3Get().today
              : Math.max(0, parseInt(today, 10) || 0);
@@ -2625,13 +2626,27 @@ body.lucky-open{ overflow:hidden !important; padding-bottom:0 !important; }
         Moi lan claim server tra r.today = 25/35 -> tdDayV3Sync() dung
         Math.max(60, 25) = 60 -> KHONG BAO GIO TANG. histAdd() lai ghi
         doc lap vao kho rieng nen van hien dong +5/+10. Dung 3 anh ban chup.
-        LUAT MOI: sau MUTATION CO REWARD, cong thang REWARD THAT vao
-        ledger ngay (tdDayV3Bump), khong trong vao so tuyet doi cua server.
+        LUAT MOI (BAN 43c1): sau MUTATION CO REWARD, day ledger toi
+        max(serverToday, before + REWARD THAT). KHONG bump chong len so
+        server da tinh -> het loi '+10 diem danh ma Coin hom nay hien 20'.
         tdDayV3Sync da set __tdServerTodayAt -> tdAfterCheckin KHONG bump
         them lan nua -> khong bi dem doi +10 diem danh. */
      var R = Math.max(0, parseInt((opts && opts.reward), 10) || 0);
      var rewardBump = !!(opts && opts.claim && R > 0);
-     if (rewardBump && window.tdDayV3Bump) D = window.tdDayV3Bump(R);
+     /* BAN 43c1 · LOI THAT: claim_task tra r.today DA CONG +10.
+        tdDayV3Sync() dua 10 vao ledger, roi tdDayV3Bump(10) cong them
+        lan nua -> 20. Chi day toi max(server, before+R), khong cong doi. */
+     if (rewardBump) {
+       var targetToday = Math.max(D, (parseInt(beforeToday, 10) || 0) + R);
+       try {
+         if (window.tdDayV3Set) {
+           window.tdDayV3Set(targetToday, (window.tdDayV3Get() || {}).ck);
+           D = targetToday;
+         } else if (window.tdDayV3Bump) {
+           D = window.tdDayV3Bump(R);
+         }
+       } catch (e) {}
+     }
      var T = Math.max(0, parseInt(total, 10) || 0);
      /* BAN 42l: server co the bat dau tu 0 sau khi deploy lai Convex.
         Cong offset 1 lan de "Thu nhap cua toi" van tang theo tung +10. */
@@ -7203,8 +7218,12 @@ body{
 .clix-page{ --clix-top:104px; --clix-bottom:78px;
   position:fixed; inset:0 0 66px 0; z-index:9990; background:#070d18; }
 .clix-wrap{ position:absolute; inset:0; overflow:hidden; background:#070d18; }
-.clix-status{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  color:#94a3b8; font-size:14px; text-align:center; padding:24px; z-index:2; background:#070d18; }
+/* BAN 43c1: bo lop phu den full-screen luc tai -> bam Offers hien khung ngay.
+   Thong bao chi con 1 thanh nho, khong che danh sach offer. */
+.clix-status{ position:absolute; left:12px; right:12px; top:10px; display:none;
+  align-items:center; justify-content:center; color:#94a3b8; font-size:12px;
+  text-align:center; padding:8px 12px; z-index:4; pointer-events:none;
+  background:rgba(7,13,24,.82); border-radius:10px; }
 #clixFrame{ position:absolute; left:0; top:calc(-1 * var(--clix-top)); width:100%;
   height:calc(100% + var(--clix-top) + var(--clix-bottom));
   border:0; background:#0f172a; display:none; }
@@ -13537,7 +13556,9 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
       setStatus('', false); return true;
     }
     fr.setAttribute('data-uid', uid);
-    setStatus('Đang tải nhiệm vụ ClixWall…', true);
+    /* BAN 43c1: KHONG hien man den cho. iframe da display:block o duoi,
+       nen khung hien ngay, noi dung ClixWall tu ve dan khi tai xong. */
+    setStatus('', false);
     fr.onload  = function () { setStatus('', false); };
     fr.onerror = function () {
       setStatus('Không tải được ClixWall. Kiểm tra mạng rồi bấm lại tab Offers.', true);
@@ -13618,6 +13639,36 @@ html.td-force-login #switchAccountOverlay, html.td-force-login #registerScreen{ 
     window.mountClixWall();
   }, 800);
   setTimeout(poll, 2000);
+
+  /* ---- BAN 43c1 · TU SUA SO 20 DA LUU TU BAN CU (1 lan/acc/ngay) ----
+     Dieu kien that chat: da diem danh hom nay (ck), ledger dung bang 20,
+     va lich su hom nay KHONG co giao dich nao khac ngoai diem danh.
+     Neu ban that su lam them nhiem vụ +10 thi lich su co dong khac -> bo qua. */
+  try {
+    var fixKey = 'td_fix43c1:' + (window.tdOwner ? window.tdOwner() : 'anon') +
+                 ':' + (window.tdRawDay ? window.tdRawDay() : '');
+    var runFix43c1 = function () {
+      try {
+        if (!window.tdRaw || !window.tdDayV3Get || !window.tdOwner) return;
+        if (window.tdOwner() === 'anon') return;
+        if (window.tdRaw.get(fixKey) === '1') return;
+        var d = window.tdDayV3Get();
+        if (!d.ck || d.today !== 20) { window.tdRaw.set(fixKey, '1'); return; }
+        var h = (window.tdHistGet ? window.tdHistGet() : []) || [];
+        var other = h.filter(function (e) {
+          var t = String((e && e.label) || '').toLowerCase();
+          return t.indexOf('diem danh') === -1 && t.indexOf('điểm danh') === -1;
+        });
+        if (other.length === 0) {
+          if (window.tdDayV3Set) window.tdDayV3Set(10, true);
+          if (window.tdForcePaint) window.tdForcePaint(10);
+        }
+        window.tdRaw.set(fixKey, '1');
+      } catch (e) {}
+    };
+    setTimeout(runFix43c1, 1500);
+    setTimeout(runFix43c1, 7000);
+  } catch (e) {}
   setInterval(poll, POLL_MS);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) { window.mountClixWall(); poll(); }
